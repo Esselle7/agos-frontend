@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -56,6 +56,7 @@ const MS_DAY = 86_400_000;
 })
 export class ScadenzarioComponent implements OnInit {
   private readonly dashboardSvc = inject(DashboardService);
+  private readonly router = inject(Router);
 
   // ── Stato ─────────────────────────────────────────────────────────────────
   readonly periodo = signal<DashboardPeriod>('YTD');
@@ -184,6 +185,17 @@ export class ScadenzarioComponent implements OnInit {
 
   toggleFiltro(t: ScadTipo): void {
     this.filtri.update(f => ({ ...f, [t]: !f[t] }));
+  }
+
+  /** Apre il dettaglio della voce nella pagina di competenza (v.id = id navigabile della sorgente:
+   *  evento, piano ricorrente, movimento). Vedi DashboardService.getScadenzeImminenti per gli id. */
+  apri(v: Voce): void {
+    switch (v.tipo) {
+      case 'EVENTO':     this.router.navigate(['/eventi', v.id]); break;
+      case 'RICORRENTE': this.router.navigate(['/spese-ricorrenti', v.id]); break;
+      case 'USCITA':
+      case 'ENTRATA':    this.router.navigate(['/movimenti', v.id]); break;
+    }
   }
 
   mesePrec(): void { this.meseCal.update(m => new Date(m.getFullYear(), m.getMonth() - 1, 1)); }

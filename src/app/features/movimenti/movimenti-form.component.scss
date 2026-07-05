@@ -219,6 +219,25 @@
     .mat-button-toggle-checked { font-weight: 600; }
   }
 
+  // ── Mobile: label sopra, toggle full-width 50/50 (niente "Costo / Uscita" tagliato) ──
+  @media (max-width: 640px) {
+    &__tipo-row,
+    &__stato-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    &__tipo-toggle,
+    &__stato-toggle {
+      display: flex;
+      width: 100%;
+
+      .mat-button-toggle { flex: 1 1 0; }
+      // Se l'etichetta è lunga va a capo, non viene troncata/nascosta
+      .mat-button-toggle-label-content { white-space: normal; line-height: 1.2; }
+    }
+  }
+
   // ── Avviso previsione cassa ────────────────────────────────────────────────
   &__previsione-info {
     display: flex;

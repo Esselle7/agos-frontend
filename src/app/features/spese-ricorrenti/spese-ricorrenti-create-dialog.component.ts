@@ -142,6 +142,7 @@ export class SpeseRicorrentiCreateDialogComponent implements OnInit {
     { value: 'MENSILE',     label: 'Mensile',     sub: 'ogni mese'   },
     { value: 'BIMESTRALE',  label: 'Bimestrale',  sub: 'ogni 2 mesi' },
     { value: 'TRIMESTRALE', label: 'Trimestrale', sub: 'ogni 3 mesi' },
+    { value: 'ANNUALE',     label: 'Annuale',     sub: 'ogni 12 mesi' },
   ];
 
   /** Scelta COGE dal picker → scrive l'id nel control (identico al vecchio select). */
@@ -254,7 +255,7 @@ export class SpeseRicorrentiCreateDialogComponent implements OnInit {
     const P = Number(v.importoDebitoIniziale) || 0;
     const rAnn = Number(v.tassoInteresseAnnuo) || 0;
     const freq = v.frequenza as string || 'MENSILE';
-    const mesiPerRata = freq === 'BIMESTRALE' ? 2 : freq === 'TRIMESTRALE' ? 3 : 1;
+    const mesiPerRata = freq === 'BIMESTRALE' ? 2 : freq === 'TRIMESTRALE' ? 3 : freq === 'ANNUALE' ? 12 : 1;
     const r = rAnn > 0 ? (rAnn / 100) * mesiPerRata / 12 : 0;
 
     if (P <= 0 || rAnn <= 0) { this.computedFin.set(null); return; }
@@ -380,7 +381,7 @@ export class SpeseRicorrentiCreateDialogComponent implements OnInit {
   private buildPreview(importoRata: number, numeroRate: number): RataPreview[] {
     const v = this.form.value;
     const { annoInizio, meseInizio, giornoDelMese, frequenza, variazionePct } = v;
-    const mesiPerRata = frequenza === 'BIMESTRALE' ? 2 : frequenza === 'TRIMESTRALE' ? 3 : 1;
+    const mesiPerRata = frequenza === 'BIMESTRALE' ? 2 : frequenza === 'TRIMESTRALE' ? 3 : frequenza === 'ANNUALE' ? 12 : 1;
     const result: RataPreview[] = [];
     let importo = importoRata;
     let data = new Date(annoInizio, Number(meseInizio) - 1, giornoDelMese);

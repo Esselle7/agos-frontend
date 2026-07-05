@@ -1,0 +1,36 @@
+<h2 mat-dialog-title>Liquida acquisto</h2>
+
+<mat-dialog-content>
+  <p class="ca-hint">
+    Paga ora <strong>{{ data.descrizione }}</strong> ({{ data.costoStorico | euro }}): l'uscita passa
+    da <em>da liquidare</em> a <strong>registrata</strong>, con la cassa aggiornata.
+  </p>
+
+  <p class="ca-pay-label">Con quale conto lo paghi?</p>
+  <div class="ca-pay-grid">
+    @for (c of contiPagamento(); track c.id) {
+      <button type="button" class="ca-conto"
+              [class.ca-conto--active]="contoSelezionato() === c.id"
+              [class.ca-conto--ko]="!copre(c)"
+              [disabled]="!copre(c)"
+              (click)="selezionaConto(c)">
+        <mat-icon>{{ c.tipo === 'CASSA' ? 'payments' : 'account_balance' }}</mat-icon>
+        <span class="ca-conto-nome">{{ c.nome }}</span>
+        <span class="ca-conto-saldo" [class.neg]="c.saldoCalcolato < 0">
+          Saldo {{ c.saldoCalcolato | euro }}
+        </span>
+        @if (!copre(c)) {
+          <span class="ca-conto-ko-msg">Non hai abbastanza fondi qui 😕</span>
+        }
+      </button>
+    }
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="annulla()" [disabled]="saving()">Annulla</button>
+  <button mat-flat-button color="primary" (click)="salva()"
+          [disabled]="saving() || contoSelezionato() === null">
+    @if (saving()) { <mat-spinner diameter="18" /> } @else { Liquida }
+  </button>
+</mat-dialog-actions>

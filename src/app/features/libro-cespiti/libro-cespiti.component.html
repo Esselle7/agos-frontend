@@ -1,0 +1,94 @@
+<div class="lc">
+  <header class="lc__head">
+    <div>
+      <h1>Libro cespiti</h1>
+      <p class="lc__sub">I beni durevoli acquistati quest'anno, con la loro spesa e l'ammortamento nel tempo.</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="apriAcquisto()">
+      <mat-icon>shopping_cart</mat-icon> Registra acquisto
+    </button>
+  </header>
+
+  <agos-help-note tono="info" [collapsed]="true" titolo="Come funziona un cespite">
+    <p>Quando compri un bene durevole (es. lavastoviglie da 10.000 €), i soldi <strong>escono subito</strong>
+      dalla banca o dalla cassa (uscita finanziaria, investimento), ma <strong>non è un costo del conto
+      economico</strong>: il costo entra nel P&amp;L un po' al mese come <strong>ammortamento</strong>,
+      spalmato sulla vita utile che scegli (es. 10.000 € in 2 anni = 416,67 €/mese).</p>
+    <p>I beni già posseduti prima del gestionale restano nel libro iniziale
+      (Situazione iniziale → Cespiti).</p>
+  </agos-help-note>
+
+  @if (loading()) {
+    <div class="lc__center"><mat-spinner diameter="32" /></div>
+  } @else if (cespiti().length === 0) {
+    <div class="lc__empty">
+      <mat-icon>inventory_2</mat-icon>
+      <p>Nessun acquisto registrato.</p>
+      <span>Usa "Registra acquisto" per capitalizzare un nuovo bene e impostarne l'ammortamento.</span>
+    </div>
+  } @else {
+    <div class="lc__table-wrap">
+      <table class="lc__table">
+        <thead>
+          <tr>
+            <th>Bene</th>
+            <th>Acquisto</th>
+            <th class="num">Costo</th>
+            <th class="num">Vita</th>
+            <th class="num">Amm./anno</th>
+            <th class="num">Ammortizzato</th>
+            <th class="num">Residuo</th>
+            <th>Pagamento</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of cespiti(); track c.id) {
+            <tr [class.lc__row--off]="!c.isActive">
+              <td>
+                <strong>{{ c.descrizione }}</strong>
+                <span class="lc__coge">{{ c.contoCogeCodice }} · {{ c.contoCogeDescrizione }}</span>
+              </td>
+              <td>{{ c.dataAcquisto }}</td>
+              <td class="num strong">{{ c.costoStorico | euro }}</td>
+              <td class="num">{{ vitaAnni(c) }} anni</td>
+              <td class="num">{{ c.ammortamentoAnnuo | euro }}</td>
+              <td class="num">{{ c.giaAmmortizzato | euro }}</td>
+              <td class="num">{{ c.valoreResiduo | euro }}</td>
+              <td>
+                @if (c.statoPagamentoAcquisto === 'REGISTRATO') {
+                  <span class="lc__badge lc__badge--ok">Pagato</span>
+                } @else if (c.statoPagamentoAcquisto === 'DA_LIQUIDARE') {
+                  <span class="lc__badge lc__badge--pending">Da liquidare</span>
+                } @else {
+                  <span class="lc__badge">—</span>
+                }
+              </td>
+              <td class="lc__act">
+                @if (c.statoPagamentoAcquisto === 'DA_LIQUIDARE') {
+                  <button mat-icon-button color="primary" (click)="liquida(c)"
+                          matTooltip="Liquida (paga) l'acquisto">
+                    <mat-icon>paid</mat-icon>
+                  </button>
+                }
+                <button mat-icon-button (click)="elimina(c)"
+                        [matTooltip]="c.statoPagamentoAcquisto === 'REGISTRATO'
+                          ? 'Acquisto già pagato: non eliminabile'
+                          : 'Elimina'">
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4">Totale ammortamento annuo (attivi)</td>
+            <td class="num strong">{{ totaleAnnuo() | euro }}</td>
+            <td colspan="4" class="lc__foot-hint">≈ {{ (totaleAnnuo() / 12) | euro }}/mese nel P&amp;L</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  }
+</div>

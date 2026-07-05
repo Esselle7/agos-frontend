@@ -1,0 +1,145 @@
+:host { display: block; }
+
+.voci-loading { display: flex; justify-content: center; padding: 1.5rem; }
+
+.icon-xs { font-size: 16px; width: 16px; height: 16px; vertical-align: middle; }
+
+// ── Aggiunta rapida (chip default) ─────────────────────────────────────────
+.voci-suggeriti {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+
+  &-label { font-size: 0.85rem; color: var(--text-sub); }
+}
+.voci-chip { line-height: 1.7; }
+
+// ── Tabella voci ───────────────────────────────────────────────────────────
+.voci-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
+
+.voci-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  min-width: 640px;
+
+  th, td { padding: 0.5rem 0.6rem; text-align: left; vertical-align: middle; }
+
+  thead th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: var(--text-sub);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .col-num  { text-align: right; white-space: nowrap; }
+  .col-act  { text-align: right; white-space: nowrap; width: 1%; }
+  .col-strong { font-weight: 600; color: var(--text-main); }
+  .voci-muted { color: var(--text-sub); }
+
+  tbody .voci-row { border-bottom: 1px solid var(--border-soft); transition: background-color .15s ease; }
+  tbody .voci-row:hover { background: var(--surface-sunken); }
+  tbody .voci-row--edit { background: var(--card-tint); }
+
+  tfoot .voci-total {
+    border-top: 2px solid var(--border-strong);
+    td { padding-top: 0.7rem; }
+    .col-strong { font-size: 1rem; }
+  }
+}
+
+.voci-name { color: var(--text-main); }
+.voci-badge { color: var(--info); margin-left: 0.25rem; }
+
+.voci-tag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent-d);
+}
+
+.voci-hint { font-size: 0.78rem; color: var(--text-faint); font-style: italic; }
+.voci-empty { text-align: center; color: var(--text-sub); padding: 1.25rem; }
+
+.delta-pos { color: var(--success); font-weight: 600; }
+.delta-neg { color: var(--danger);  font-weight: 600; }
+
+// Input compatti dentro le celle
+.cell-num {
+  width: 5.5rem;
+  padding: 0.3rem 0.45rem;
+  text-align: right;
+  font: inherit;
+  color: var(--text-main);
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+
+  &:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+}
+
+// ── Pannello aggiunta ──────────────────────────────────────────────────────
+.voci-add {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.voci-add-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+
+  .fld-voce  { flex: 2 1 220px; min-width: 200px; }
+  .fld-label { flex: 1 1 180px; min-width: 160px; }
+  .fld-sm    { flex: 0 1 110px; min-width: 100px; }
+}
+
+.voci-add-preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.15rem 0.25rem 0.5rem;
+  margin-left: auto;
+
+  &-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-sub); }
+  &-val   { font-size: 1.15rem; font-weight: 700; color: var(--primary); }
+}
+
+.voci-add-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+.voci-add-btn { margin-top: 1rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .voci-table tbody .voci-row,
+  .cell-num { transition: none; }
+}
+
+// Opzione listino: solo il nome della voce (il prezzo si compila nel campo dedicato)
+.opt-label { color: var(--text-main); }
+
+.voci-add-hint {
+  margin: 0.6rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-sub);
+}
+.voci-add-preview-cons { color: var(--info); }
+
+.voci-mode { margin-bottom: 0.85rem; }
+.fld-omaggio { align-self: center; white-space: nowrap; }

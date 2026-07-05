@@ -106,8 +106,12 @@
               <p class="scad__col-empty">Niente nel periodo.</p>
             } @else {
               <ul class="scad__list">
-                @for (v of col.voci; track v.id) {
-                  <li class="scad__item" [class.is-paid]="v.saldato" [class.is-late]="v.scaduto && !v.saldato">
+                @for (v of col.voci; track $index) {
+                  <li class="scad__item scad__item--clickable"
+                      [class.is-paid]="v.saldato" [class.is-late]="v.scaduto && !v.saldato"
+                      role="button" tabindex="0"
+                      matTooltip="Apri il dettaglio"
+                      (click)="apri(v)" (keydown.enter)="apri(v)" (keydown.space)="apri(v)">
                     <div class="scad__item-main">
                       <span class="scad__item-desc" [title]="v.descrizione">{{ v.descrizione }}</span>
                       <span class="scad__item-amount">{{ segno(v.tipo) }} {{ v.importo | euro }}</span>
@@ -118,6 +122,7 @@
                         {{ statoLabel(v) }}
                       </span>
                       <span class="scad__item-date">{{ formatGiorno(v.data) }}</span>
+                      <mat-icon class="scad__item-open" aria-hidden="true">open_in_new</mat-icon>
                     </div>
                   </li>
                 }
@@ -160,10 +165,12 @@
                    [class.is-out]="!day.nelMese" [class.is-today]="day.oggi">
                 <span class="scad__cal-num">{{ day.giorno }}</span>
                 <div class="scad__cal-items">
-                  @for (v of day.voci; track v.id) {
-                    <span class="scad__cal-pill" [class]="meta[v.tipo].cls"
+                  @for (v of day.voci; track $index) {
+                    <span class="scad__cal-pill scad__cal-pill--clickable" [class]="meta[v.tipo].cls"
                           [class.is-late]="v.scaduto && !v.saldato"
-                          [matTooltip]="meta[v.tipo].label + ' · ' + v.descrizione + ' · ' + (v.importo | euro)">
+                          role="button" tabindex="0"
+                          (click)="apri(v)" (keydown.enter)="apri(v)"
+                          [matTooltip]="meta[v.tipo].label + ' · ' + v.descrizione + ' · ' + (v.importo | euro) + ' · apri'">
                       <span class="scad__cal-pill-dot"></span>
                       <span class="scad__cal-pill-txt">{{ v.descrizione }}</span>
                     </span>

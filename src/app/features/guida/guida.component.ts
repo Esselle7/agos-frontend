@@ -49,6 +49,7 @@ const SECTIONS: GuideSection[] = [
       { title: 'Movimenti', icon: 'receipt_long', file: '03-movimenti.md' },
       { title: 'Import & smistamento', icon: 'move_to_inbox', file: '06-import-e-smistamento.md' },
       { title: 'Spese ricorrenti', icon: 'event_repeat', file: '05-spese-ricorrenti.md' },
+      { title: 'Libro cespiti', icon: 'inventory_2', file: '16-libro-cespiti.md' },
     ],
   },
   {

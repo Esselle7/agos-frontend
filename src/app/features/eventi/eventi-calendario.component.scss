@@ -87,6 +87,11 @@
 
     &.past:not(.today) {
       opacity: 0.65;
+      cursor: default;
+
+      &:hover {
+        background: var(--card);
+      }
     }
 
     .day-num {

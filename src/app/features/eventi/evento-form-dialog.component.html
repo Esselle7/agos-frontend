@@ -53,11 +53,13 @@
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Data evento *</mat-label>
           <mat-icon matPrefix>event</mat-icon>
-          <input matInput [matDatepicker]="pickerEvento" formControlName="dataEvento" />
+          <input matInput [matDatepicker]="pickerEvento" [min]="isEdit() ? null : today" formControlName="dataEvento" />
           <mat-datepicker-toggle matSuffix [for]="pickerEvento" />
           <mat-datepicker #pickerEvento />
           @if (form.controls.dataEvento.hasError('required') && form.controls.dataEvento.touched) {
             <mat-error>Campo obbligatorio</mat-error>
+          } @else if (form.controls.dataEvento.hasError('matDatepickerMin')) {
+            <mat-error>Non puoi creare un evento in una data passata</mat-error>
           }
         </mat-form-field>
 
@@ -76,13 +78,11 @@
         quel mese, anche se caparra e saldo arrivano prima o dopo.
       </p>
 
-      <div class="dform__row">
-        <agos-currency-input
-          formControlName="importoTotalePreviventivato"
-          label="Importo preventivato"
-          placeholder="0,00"
-        />
-      </div>
+      <p class="dform__note">
+        <mat-icon>receipt_long</mat-icon>
+        Il <strong>preventivo</strong> si compone dopo la creazione, nel dettaglio evento, con le
+        voci (Affitto, Menu e altre): il totale preventivato è la loro somma.
+      </p>
 
       <!-- ── Dati contatto ──────────────────────────────────── -->
       <p class="dform__section"><mat-icon>contacts</mat-icon> Dati contatto</p>

@@ -141,6 +141,7 @@ export interface ForecastingEconomicoDTO {
   ricaviPrevisti: number;
   costiPrevisti: number;
   ebitdaPrevisto: number;
+  ammortamentiPrevisti: number;
   oneriFinanziariPrevisti: number;
   ebitPrevisto: number;
   dettaglio: ForecastingDettaglioDTO[];

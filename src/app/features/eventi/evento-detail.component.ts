@@ -29,13 +29,12 @@ import {
   TipoPagamentoEvento,
 } from '../../core/models/eventi.models';
 import { BusinessUnitDTO } from '../../core/models/anagrafica.models';
-import { DecimalPipe } from '@angular/common';
 import { EuroPipe } from '../../shared/pipes/euro.pipe';
 import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader/skeleton-loader.component';
 import { HelpNoteComponent } from '../../shared/components/help-note/help-note.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { EventoCostiDirettiComponent } from './evento-costi-diretti/evento-costi-diretti.component';
-import { EventoPreventivoMonitoringComponent } from './evento-preventivo-monitoring/evento-preventivo-monitoring.component';
+import { EventoVociComponent } from './evento-voci/evento-voci.component';
 import { forkJoin } from 'rxjs';
 
 const STATO_COLORS: Record<StatoEvento, string> = {
@@ -79,12 +78,11 @@ const STEP_ORDER: StatoEvento[] = ['PREVENTIVATO', 'CONFERMATO', 'SALDATO'];
     MatProgressSpinnerModule,
     MatDividerModule,
     MatTooltipModule,
-    DecimalPipe,
     EuroPipe,
     SkeletonLoaderComponent,
     HelpNoteComponent,
     EventoCostiDirettiComponent,
-    EventoPreventivoMonitoringComponent,
+    EventoVociComponent,
   ],
   templateUrl: './evento-detail.component.html',
   styleUrls: ['./evento-detail.component.scss'],
@@ -522,6 +520,22 @@ export class EventoDetailComponent implements OnInit, OnDestroy {
   buNome(buId: number): string { return this.buMap().get(buId)?.nome ?? `BU#${buId}`; }
   buColore(buId: number): string { return this.buMap().get(buId)?.colore ?? '#6B7280'; }
   progressColor(pct: number | null): string { return (pct ?? 0) >= 100 ? '#4CAF50' : '#FFA500'; }
+
+  /** Dovuto dal cliente: il consuntivo se presente e >0, altrimenti il preventivo. */
+  dovutoCliente(ev: EventoDTO): number {
+    const cons = ev.totaleConsuntivato ?? 0;
+    return cons > 0 ? cons : (ev.importoTotalePreviventivato ?? 0);
+  }
+  /** Saldo ancora da incassare rispetto al dovuto (consuntivo o preventivo). */
+  saldoDaCorrispondere(ev: EventoDTO): number {
+    return this.dovutoCliente(ev) - (ev.importoIncassato ?? 0);
+  }
+  /** % di una grandezza sulla scala comune delle barre comparative. */
+  barPct(value: number | null, ev: EventoDTO): number {
+    const scala = Math.max(
+      ev.importoTotalePreviventivato ?? 0, this.dovutoCliente(ev), ev.importoIncassato ?? 0, 1);
+    return Math.min(100, Math.max(0, ((value ?? 0) / scala) * 100));
+  }
   iniziali(nome: string, cognome: string): string { return `${nome.charAt(0)}${cognome.charAt(0)}`.toUpperCase(); }
 
   formatDate(str: string | null): string {

@@ -1,6 +1,6 @@
 export type InstallmentStato = 'PENDING' | 'PAID' | 'CANCELLED' | 'SKIPPED';
 export type PlanStato = 'ATTIVO' | 'COMPLETATO' | 'ANNULLATO';
-export type Frequenza = 'MENSILE' | 'BIMESTRALE' | 'TRIMESTRALE';
+export type Frequenza = 'MENSILE' | 'BIMESTRALE' | 'TRIMESTRALE' | 'ANNUALE';
 export type TipoPiano = 'FLAT' | 'FINANZIAMENTO';
 
 export interface InstallmentDTO {

@@ -67,8 +67,52 @@ export interface EventoDTO {
   /** Data del SALDO non annullato. Visibile a tutti. */
   dataSaldo: string | null;
   pagamenti: PagamentoEventoDTO[];
+  /** ADMIN-only. Voci che compongono preventivo/consuntivo. */
+  voci: EventoVoceDTO[] | null;
+  /** ADMIN-only. Σ COALESCE(consuntivo, preventivo). */
+  totaleConsuntivato: number | null;
+  /** ADMIN-only. totaleConsuntivato − preventivato. */
+  scostamentoConsuntivo: number | null;
   createdAt: string;
   createdBy: string;
+}
+
+// ── Voci di preventivo/consuntivo ─────────────────────────────────────────
+export type OrigineVoce = 'MANUALE' | 'COSTO_DIRETTO';
+
+export interface EventoVoceDTO {
+  id: number;
+  catalogoId: number | null;
+  label: string;
+  prezzoUnitario: number;
+  quantitaPreventivo: number;
+  quantitaConsuntivo: number | null;
+  importoPreventivo: number;
+  importoConsuntivo: number | null;
+  /** consuntivo − preventivo, o null se non ancora consuntivata. */
+  scostamento: number | null;
+  origine: OrigineVoce;
+  costoDirettoId: number | null;
+  note: string | null;
+}
+
+export interface EventoVoceRequest {
+  /** Voce di listino esistente selezionata (alternativa a label). */
+  catalogoId?: number | null;
+  /** Label nuova → registrata nel listino (alternativa a catalogoId). */
+  label?: string | null;
+  prezzoUnitario?: number | null;
+  quantitaPreventivo?: number | null;
+  quantitaConsuntivo?: number | null;
+  note?: string | null;
+}
+
+export interface EventoVoceCatalogoDTO {
+  id: number;
+  label: string;
+  isDefault: boolean;
+  prezzoDefault: number | null;
+  unita: string | null;
 }
 
 export interface EventoCreateRequest {
@@ -76,7 +120,8 @@ export interface EventoCreateRequest {
   tipo: string;
   dataEvento: string;
   dataPreventivo: string | null;
-  importoTotalePreviventivato: number | null;
+  /** Opzionale: se valorizzato diventa una voce "Preventivo iniziale". Il form voci-first non lo invia. */
+  importoTotalePreviventivato?: number | null;
   contattoNome: string;
   contattoTelefono: string | null;
   contattoEmail: string | null;
@@ -194,6 +239,10 @@ export interface EventoCostoDirettoRequest {
   voce: VoceCostoEvento;
   etichetta?: string | null;
   importo?: number | null;
+  /** Opzionale: importo addebitato al cliente (ricarico) → crea una voce di preventivo. */
+  importoAddebitoCliente?: number | null;
+  /** BU a cui imputare il movimento di costo. Se null, la BU dell'evento. */
+  businessUnitId?: number | null;
   note?: string | null;
 }
 

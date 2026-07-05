@@ -181,3 +181,10 @@
   .field--wide { grid-column: span 1; }
 }
 @media (prefers-reduced-motion: reduce) { .btn-save, .btn-add { transition: none; } }
+
+.cesp-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.btn-add--alt {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: var(--accent);
+  color: var(--accent-d);
+}

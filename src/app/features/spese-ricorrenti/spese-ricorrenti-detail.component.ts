@@ -184,7 +184,7 @@ export class SpeseRicorrentiDetailComponent implements OnInit {
   }
 
   frequenzaLabel(f: string): string {
-    return { MENSILE: 'Mensile', BIMESTRALE: 'Bimestrale', TRIMESTRALE: 'Trimestrale' }[f] ?? f;
+    return { MENSILE: 'Mensile', BIMESTRALE: 'Bimestrale', TRIMESTRALE: 'Trimestrale', ANNUALE: 'Annuale' }[f] ?? f;
   }
 
   totaleResiduo(): number {

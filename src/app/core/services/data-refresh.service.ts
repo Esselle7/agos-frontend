@@ -33,6 +33,9 @@ export class DataRefreshService {
    */
   notifyMutation(): void {
     this.cache.invalidatePattern('dashboard:');
+    // I saldi conti (mv_saldi_conti) cambiano ad ogni movimento finanziario: invalida anche
+    // la cache dei conti così banca/cassa mostrano il saldo aggiornato dopo la mutation.
+    this.cache.invalidate('conti:all');
     setTimeout(() => this._dashboardRefresh.next(), this.refreshDelayMs);
   }
 }

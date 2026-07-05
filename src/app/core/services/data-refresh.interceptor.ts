@@ -47,6 +47,10 @@ function shouldTrigger(url: string): boolean {
   return (
     url.includes('/api/movimenti') ||
     url.includes('/api/eventi/') && url.includes('/pagamenti') ||
-    url.includes('/api/spese-ricorrenti/piani')
+    url.includes('/api/spese-ricorrenti/piani') ||
+    // Acquisto cespite: genera un'uscita CAPEX → impatta cassa/dashboard/P&L
+    url.includes('/api/cespiti/acquisto') ||
+    // Liquidazione differita di un acquisto cespite: paga l'uscita → impatta cassa/dashboard
+    (url.includes('/api/cespiti/') && url.includes('/liquidazione'))
   );
 }

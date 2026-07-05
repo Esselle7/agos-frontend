@@ -748,3 +748,67 @@
     }
   }
 }
+
+// ── Vista a barre comparativa (preventivo / consuntivo / incassato) ─────────
+.cmp-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.9rem;
+}
+.cmp-row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+.cmp-label {
+  font-size: 0.82rem;
+  color: var(--text-sub);
+}
+.cmp-track {
+  position: relative;
+  height: 12px;
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.cmp-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width .35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cmp-fill--prev { background: color-mix(in srgb, var(--accent) 55%, var(--surface-2)); }
+.cmp-fill--cons { background: var(--primary); }
+.cmp-fill--inc  { background: var(--success); }
+.cmp-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-main);
+  min-width: 5.5rem;
+  text-align: right;
+}
+
+.saldo-corrispondere {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
+  font-size: 0.95rem;
+
+  strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+
+  &.saldo-ok {
+    background: color-mix(in srgb, var(--success) 14%, transparent);
+    color: var(--success);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmp-fill { transition: none; }
+}

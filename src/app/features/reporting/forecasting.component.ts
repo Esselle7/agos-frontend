@@ -37,17 +37,23 @@ const HORIZONS: { value: ForecastingHorizon; label: string }[] = [
 ];
 
 const CATEGORIA_LABEL: Record<string, string> = {
-  MOVIMENTO:       'Movimento',
-  EVENTO:          'Evento',
-  RATA_RICORRENTE: 'Spesa Ricorrente',
-  STIPENDIO:       'Stipendio',
+  MOVIMENTO:                 'Movimento',
+  EVENTO:                    'Evento',
+  RATA_RICORRENTE:           'Spesa Ricorrente',
+  RATA_RICORRENTE_CAPITALE:  'Rata (capitale)',
+  RATA_RICORRENTE_INTERESSI: 'Rata (interessi)',
+  STIPENDIO:                 'Stipendio',
+  AMMORTAMENTO:              'Ammortamento',
 };
 
 const CATEGORIA_COLOR: Record<string, string> = {
-  MOVIMENTO:       '#2C6E8F',
-  EVENTO:          '#E65100',
-  RATA_RICORRENTE: '#6A1B9A',
-  STIPENDIO:       '#2E7D32',
+  MOVIMENTO:                 '#2C6E8F',
+  EVENTO:                    '#E65100',
+  RATA_RICORRENTE:           '#6A1B9A',
+  RATA_RICORRENTE_CAPITALE:  '#6A1B9A',
+  RATA_RICORRENTE_INTERESSI: '#6A1B9A',
+  STIPENDIO:                 '#2E7D32',
+  AMMORTAMENTO:              '#8D6E63',
 };
 
 @Component({
@@ -100,7 +106,8 @@ export class ForecastingComponent implements OnInit {
     let items = d.economico.dettaglio;
     if (!this.includiStime()) items = items.filter(i => i.affidabilita !== 'STIMATO');
     const f = this.categoriaFiltro();
-    return f === 'TUTTE' ? items : items.filter(i => i.categoria === f);
+    // startsWith: il chip RATA_RICORRENTE copre anche le righe split _CAPITALE/_INTERESSI
+    return f === 'TUTTE' ? items : items.filter(i => i.categoria.startsWith(f));
   });
 
   // ── Grafico timeline (saldo liquidità proiettato) ─────────────────────────

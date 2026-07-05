@@ -4,7 +4,7 @@
 > Scritta in italiano, passo passo. Spiega *come* si usa il gestionale e *perché* le cose
 > funzionano così (cosa succede ai conti e alla cassa).
 >
-> Aggiornato al 29 giugno 2026 · allineato al codice dell'applicazione.
+> Aggiornato al 5 luglio 2026 · allineato al codice dell'applicazione.
 
 ---
 
@@ -49,6 +49,7 @@ una lettura lineare di tutta la Parte II.)
 - [9. Movimenti](03-movimenti.md)
 - [12. Import & smistamento](06-import-e-smistamento.md)
 - [11. Spese ricorrenti](05-spese-ricorrenti.md)
+- [22. Libro cespiti](16-libro-cespiti.md)
 
 **Analisi**
 - [15. Report e Previsioni](09-reporting-e-previsioni.md)
@@ -73,7 +74,7 @@ Il menu a sinistra è raggruppato in quattro aree — *lavoro quotidiano → sol
 | Area | Voci |
 |---|---|
 | **Operatività** | Dashboard · Eventi · Scadenzario |
-| **Contabilità** | Movimenti · Import & smistamento · Spese ricorrenti |
+| **Contabilità** | Movimenti · Import & smistamento · Spese ricorrenti · Libro cespiti |
 | **Analisi** | Report · Previsioni · Esporta dati |
 | **Configurazione** | Anagrafica · Piano dei conti · Regole di classificazione · Situazione iniziale |
 

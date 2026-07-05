@@ -9,6 +9,15 @@
     }
   </div>
 
+  <agos-help-note tono="info" [collapsed]="true" titolo="Costi diretti e addebito al cliente">
+    <p>Un <strong>costo diretto</strong> (DJ, torta, fornitori…) genera un <strong>movimento di
+      uscita</strong>: è una spesa reale dell'evento.</p>
+    <p>L'<strong>addebito al cliente</strong> è facoltativo: se lo compili, aggiunge una
+      <strong>voce di preventivo</strong> con quell'importo (il ricarico che il cliente paga),
+      senza generare un altro movimento. Esempio: paghi il DJ 200 € e lo addebiti 250 € →
+      il costo resta 200, il preventivo sale di 250.</p>
+  </agos-help-note>
+
   @if (loading()) {
     <p class="empty-hint">Caricamento costi…</p>
   } @else {
@@ -44,6 +53,16 @@
               </mat-form-field>
             }
             <agos-currency-input formControlName="importo" label="Importo *" [required]="true" />
+            <agos-currency-input formControlName="importoAddebitoCliente"
+              label="Addebito al cliente (opzionale, alza il preventivo)" />
+            <mat-form-field appearance="outline">
+              <mat-label>Business Unit del costo</mat-label>
+              <mat-select formControlName="businessUnitId">
+                @for (bu of businessUnits(); track bu.id) {
+                  <mat-option [value]="bu.id">{{ bu.nome }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
             <mat-form-field appearance="outline" class="full">
               <mat-label>Note (opzionale)</mat-label>
               <textarea matInput formControlName="note" rows="2"></textarea>
@@ -104,6 +123,16 @@
               </mat-form-field>
             }
             <agos-currency-input formControlName="importo" label="Importo *" [required]="true" />
+            <agos-currency-input formControlName="importoAddebitoCliente"
+              label="Addebito al cliente (opzionale, alza il preventivo)" />
+            <mat-form-field appearance="outline">
+              <mat-label>Business Unit del costo</mat-label>
+              <mat-select formControlName="businessUnitId">
+                @for (bu of businessUnits(); track bu.id) {
+                  <mat-option [value]="bu.id">{{ bu.nome }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
             <mat-form-field appearance="outline" class="full">
               <mat-label>Note (opzionale)</mat-label>
               <textarea matInput formControlName="note" rows="2"></textarea>

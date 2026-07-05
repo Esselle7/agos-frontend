@@ -68,7 +68,7 @@
         color="success"
       />
       <agos-stat-card
-        label="Costi Totali"
+        label="Costi operativi"
         [value]="pl.costi.totale"
         icon="trending_down"
         color="danger"
@@ -193,12 +193,12 @@
         </table>
         @if (pl.costi.capex > 0) {
           <div class="capex-row">
-            <span>CAPEX (investimenti)</span>
+            <span>Investimenti (CAPEX) — fuori dai costi economici, ammortizzati nel tempo</span>
             <span class="euro">{{ pl.costi.capex | euro }}</span>
           </div>
         }
         <div class="table-footer table-footer--costi">
-          <span>Totale Costi</span>
+          <span>Totale costi operativi</span>
           <span class="euro">{{ pl.costi.totale | euro }}</span>
         </div>
       </div>

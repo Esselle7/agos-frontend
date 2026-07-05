@@ -1,0 +1,98 @@
+<h2 mat-dialog-title>Registra acquisto cespite</h2>
+
+<mat-dialog-content>
+  <p class="ca-hint">
+    Crea il bene <strong>e</strong> la relativa uscita (investimento). Non è un costo del P&amp;L:
+    l'unico costo di competenza è l'<strong>ammortamento</strong>, spalmato sulla vita utile.
+  </p>
+
+  <form [formGroup]="form" class="ca-grid">
+    <mat-form-field appearance="outline" class="ca-wide">
+      <mat-label>Descrizione</mat-label>
+      <input matInput formControlName="descrizione" placeholder="Es. Lavastoviglie professionale" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="ca-wide">
+      <mat-label>Categoria investimento (CAPEX)</mat-label>
+      <mat-select formControlName="contoCogeId">
+        @for (p of data.contiCapex; track p.id) {
+          <mat-option [value]="p.id">{{ p.codice }} — {{ p.nome }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Costo</mat-label>
+      <input matInput type="number" min="0" step="0.01" formControlName="costoStorico" />
+      <span matTextSuffix>€</span>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Durata ammortamento</mat-label>
+      <input matInput type="number" min="1" max="50" step="1" formControlName="vitaAnni" />
+      <span matTextSuffix>anni</span>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Data acquisto</mat-label>
+      <input matInput type="date" formControlName="dataAcquisto" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Business Unit</mat-label>
+      <mat-select formControlName="businessUnitId">
+        @for (bu of businessUnits(); track bu.id) {
+          <mat-option [value]="bu.id">{{ bu.nome }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </form>
+
+  <!-- ── Pagamento ─────────────────────────────────────────────────────────── -->
+  <div class="ca-pay">
+    <mat-button-toggle-group [value]="modalita()" (change)="modalita.set($event.value)"
+                             aria-label="Modalità di pagamento">
+      <mat-button-toggle value="PAGATO">Pagato subito</mat-button-toggle>
+      <mat-button-toggle value="DA_LIQUIDARE">Pagherò dopo (da liquidare)</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    @if (modalita() === 'PAGATO') {
+      <p class="ca-pay-label">Con quale conto è stato pagato?</p>
+      <div class="ca-pay-grid">
+        @for (c of contiPagamento(); track c.id) {
+          <button type="button" class="ca-conto"
+                  [class.ca-conto--active]="contoSelezionato() === c.id"
+                  [class.ca-conto--ko]="!copre(c)"
+                  [disabled]="!copre(c)"
+                  (click)="selezionaConto(c)">
+            <mat-icon>{{ c.tipo === 'CASSA' ? 'payments' : 'account_balance' }}</mat-icon>
+            <span class="ca-conto-nome">{{ c.nome }}</span>
+            <span class="ca-conto-saldo" [class.neg]="c.saldoCalcolato < 0">
+              Saldo {{ c.saldoCalcolato | euro }}
+            </span>
+            @if (!copre(c)) {
+              <span class="ca-conto-ko-msg">
+                {{ costo() > 0 ? 'Non hai abbastanza fondi qui 😕' : 'Inserisci prima il costo' }}
+              </span>
+            }
+          </button>
+        }
+      </div>
+    } @else {
+      <p class="ca-pay-note">L'uscita nascerà <strong>da liquidare</strong>: la registrerai come
+        pagata quando salderai il fornitore.</p>
+    }
+  </div>
+
+  <div class="ca-preview">
+    <mat-icon>calculate</mat-icon>
+    Ammortamento: <strong>{{ previewMensile() | euro }}/mese</strong> · {{ (previewMensile() * 12) | euro }}/anno
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="annulla()" [disabled]="saving()">Annulla</button>
+  <button mat-flat-button color="primary" (click)="salva()" [disabled]="saving()">
+    @if (saving()) { <mat-spinner diameter="18" /> } @else { Registra acquisto }
+  </button>
+</mat-dialog-actions>
