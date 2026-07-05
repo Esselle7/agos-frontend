@@ -12,7 +12,7 @@ Qui li **consulti** e, all'occorrenza, ne **modifichi** uno o ne **aggiungi** di
 
 ## Come sono organizzati
 
-I conti sono raggruppati per **natura**, ciascuna con il suo colore:
+I conti sono raggruppati per **natura**, ciascuno con il suo colore e la sua icona:
 
 | Gruppo | Cos'è | Dove pesa |
 |---|---|---|
@@ -23,19 +23,35 @@ I conti sono raggruppati per **natura**, ciascuna con il suo colore:
 | **Oneri finanziari** | Interessi su mutui/finanziamenti | Tra EBITDA ed EBIT/EBT |
 | **Imposte** | Tributi e imposte | Verso l'utile netto |
 
-Il **codice** è gerarchico: i punti indicano il livello (es. `30.01.001`). La barra di ricerca in
-alto filtra per codice o descrizione.
+Dentro ogni gruppo i conti sono mostrati **ad albero**: i conti "padre" (in grassetto) contengono i
+loro sotto-conti, rientrati verso destra. Il **codice** (es. `30.01.001`) resta visibile come piccola
+targhetta, ma è la **descrizione** a guidare la lettura. La barra di ricerca in alto filtra per nome o
+codice, mantenendo visibili i conti padre per non perdere il contesto.
 
-## Aggiungere o modificare un conto
+## Aggiungere un conto
 
-1. **Nuovo conto** (o **Aggiungi** dentro un gruppo per preselezionarne la natura). Per modificarne
-   uno esistente, clicca sulla sua scheda.
-2. Compila:
-   - **Codice** — gerarchico, i punti definiscono il livello.
-   - **Descrizione.**
-   - **Tipo** — la natura (Ricavo, Costo operativo, Attività, Passività, Onere finanziario, Imposta).
-   - **Conto padre** (opzionale) — per appenderlo sotto un conto esistente.
-3. **Salva.**
+Il **Nuovo conto** (o **Aggiungi** dentro un gruppo, che preseleziona la natura) apre una finestra a
+**due pannelli**: a sinistra l'inserimento guidato, a destra l'anteprima dal vivo di dove finirà.
+
+A sinistra, in tre passi:
+
+1. **Che natura ha?** — scegli l'insieme (Ricavi, Costi, Attività, Passività, Oneri finanziari,
+   Imposte) toccando la sua scheda colorata.
+2. **Come si chiama?** — il nome del conto (es. «Vendita torte da asporto»).
+3. **In quale gruppo?** (facoltativo) — il conto padre, scelto **per nome**, non per numero.
+
+A destra vedi l'albero dell'insieme/ramo scelto con la **nuova voce già al suo posto**, evidenziata e
+col codice **generato in automatico** (il prossimo numero libero). L'anteprima si aggiorna mentre
+scegli: cambi natura → cambia l'insieme; scegli il padre → la voce scende come figlia; scrivi il nome
+→ la label si aggiorna. Non devi mai digitare il codice.
+
+Premi **Crea.** Se nel frattempo quel numero fosse stato occupato, il sistema te ne prepara subito uno
+nuovo: basta premere di nuovo **Crea**.
+
+## Modificare un conto
+
+Clicca sulla riga del conto. Di norma cambi solo il **nome**. Il **codice** è mostrato bloccato:
+per modificarlo apri **Modifica codice (avanzato)** — è un'operazione delicata (vedi Attenzione).
 
 ## Attenzione
 

@@ -35,6 +35,10 @@ export interface CespiteDTO {
   ammortamentoAnnuo: number;
   giaAmmortizzato: number;
   valoreResiduo: number;
+  /** Movimento di acquisto CAPEX collegato (null per i cespiti del libro iniziale). */
+  movimentoAcquistoId: string | null;
+  /** REGISTRATO | DA_LIQUIDARE | null. */
+  statoPagamentoAcquisto: string | null;
 }
 
 export interface CespiteRequest {
@@ -44,6 +48,28 @@ export interface CespiteRequest {
   aliquotaAmmortamento: number;
   dataAcquisto: string;
   isActive: boolean;
+}
+
+/** Acquisto operativo: crea cespite + movimento CAPEX collegato. Durata in anni. */
+export interface CespiteAcquistoRequest {
+  descrizione: string;
+  contoCogeId: number;
+  costoStorico: number;
+  vitaAnni: number;
+  dataAcquisto: string;
+  businessUnitId: number;
+  /** Se valorizzata → movimento REGISTRATO (pagato); altrimenti DA_LIQUIDARE. */
+  dataPagamento?: string | null;
+  contoBancarioId?: number | null;
+  metodoPagamentoId?: number | null;
+  dataScadenza?: string | null;
+}
+
+/** Liquidazione differita di un acquisto rimasto DA_LIQUIDARE. */
+export interface CespiteLiquidazioneRequest {
+  contoBancarioId: number;
+  dataPagamento?: string | null;
+  metodoPagamentoId?: number | null;
 }
 
 export interface CategoriaNode {

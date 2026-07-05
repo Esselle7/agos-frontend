@@ -1,0 +1,83 @@
+.lc {
+  padding: 1.25rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.lc__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h1 { margin: 0 0 0.25rem; font-size: 1.5rem; }
+}
+
+.lc__sub { margin: 0; color: var(--text-sub); font-size: 0.92rem; }
+
+.lc__center { display: flex; justify-content: center; padding: 3rem; }
+
+.lc__empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-sub);
+
+  mat-icon { font-size: 40px; width: 40px; height: 40px; color: var(--text-faint); }
+  p { margin: 0.5rem 0 0.25rem; font-weight: 600; color: var(--text-main); }
+  span { font-size: 0.9rem; }
+}
+
+.lc__table-wrap {
+  overflow-x: auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-top: 1rem;
+}
+
+.lc__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  min-width: 820px;
+
+  th, td { padding: 0.6rem 0.75rem; text-align: left; vertical-align: middle; }
+
+  thead th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: var(--text-sub);
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr { border-bottom: 1px solid var(--border-soft); }
+  tbody tr:hover { background: var(--surface-sunken); }
+
+  tfoot td { padding-top: 0.75rem; font-weight: 600; border-top: 2px solid var(--border-strong); }
+
+  .num { text-align: right; white-space: nowrap; }
+  .strong { font-weight: 700; color: var(--text-main); }
+}
+
+.lc__row--off { opacity: 0.55; }
+
+.lc__coge { display: block; font-size: 0.78rem; color: var(--text-faint); }
+
+.lc__badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--surface-sunken);
+  color: var(--text-sub);
+
+  &--ok      { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+  &--pending { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
+}
+
+.lc__act { text-align: right; white-space: nowrap; }
+.lc__foot-hint { color: var(--text-sub); font-weight: 400; font-size: 0.85rem; }

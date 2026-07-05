@@ -36,7 +36,6 @@ import { EventiService } from '../../core/services/eventi.service';
 import { PersonaleService } from '../../core/services/personale.service';
 import { BuService } from '../../core/services/bu.service';
 import { LookupService } from '../../core/services/lookup.service';
-import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
 import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader/skeleton-loader.component';
 import { EventoCreateRequest, EventoDTO } from '../../core/models/eventi.models';
 import { PersonaleSummaryDTO } from '../../core/models/personale.models';
@@ -77,7 +76,6 @@ interface PersonaleGruppo {
     MatTooltipModule,
     MatCheckboxModule,
     MatChipsModule,
-    CurrencyInputComponent,
     SkeletonLoaderComponent,
     InputFilterDirective,
     DateMaskDirective,
@@ -260,6 +258,8 @@ export class EventoFormDialogComponent implements OnInit, OnDestroy {
 
   readonly isEdit = signal(false);
   readonly loadingForm = signal(false);
+  /** Minimo selezionabile per la data evento in creazione: oggi (no eventi nel passato). */
+  readonly today = (() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t; })();
   readonly saving = signal(false);
   readonly selectedBu = signal<BusinessUnitDTO | null>(null);
 
@@ -276,7 +276,6 @@ export class EventoFormDialogComponent implements OnInit, OnDestroy {
     tipo:                         new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
     dataEvento:                   new FormControl<Date | null>(null, [Validators.required]),
     dataPreventivo:               new FormControl<Date | null>(null),
-    importoTotalePreviventivato:  new FormControl<number | null>(null),
     businessUnitId:               new FormControl<number | null>(null, [Validators.required]),
     contattoNome:                 new FormControl<string>('', { nonNullable: true, validators: [Validators.required, AppValidators.onlyLetters()] }),
     contattoTelefono:             new FormControl<string | null>(null, [AppValidators.phone()]),
@@ -389,7 +388,6 @@ export class EventoFormDialogComponent implements OnInit, OnDestroy {
       tipo:                        ev.tipo,
       dataEvento:                  parseDate(ev.dataEvento),
       dataPreventivo:              parseDate(ev.dataPreventivo),
-      importoTotalePreviventivato: ev.importoTotalePreviventivato,
       contattoNome:                ev.contattoNome,
       contattoTelefono:            ev.contattoTelefono,
       contattoEmail:               ev.contattoEmail,
@@ -581,7 +579,6 @@ export class EventoFormDialogComponent implements OnInit, OnDestroy {
       tipo:                        v.tipo,
       dataEvento:                  this.dateToIso(v.dataEvento!),
       dataPreventivo:              v.dataPreventivo ? this.dateToIso(v.dataPreventivo) : null,
-      importoTotalePreviventivato: v.importoTotalePreviventivato,
       contattoNome:                v.contattoNome,
       contattoTelefono:            v.contattoTelefono ?? null,
       contattoEmail:               v.contattoEmail ?? null,

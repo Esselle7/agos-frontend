@@ -188,6 +188,23 @@
 .scad__item-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem; }
 .scad__item-date { color: var(--text-sub); font-size: 0.76rem; margin-left: auto; font-variant-numeric: tabular-nums; }
 
+/* Riga apribile: cursore + icona "apri" che si rivela all'hover/focus della riga. */
+.scad__item--clickable {
+  cursor: pointer;
+  &:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+}
+.scad__item-open {
+  font-size: 16px; width: 16px; height: 16px; line-height: 16px;
+  color: var(--text-sub); opacity: 0; transition: opacity 0.14s ease;
+}
+.scad__item--clickable:hover .scad__item-open,
+.scad__item--clickable:focus-visible .scad__item-open { opacity: 1; color: var(--primary); }
+.scad__cal-pill--clickable {
+  cursor: pointer;
+  &:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  &:hover { filter: brightness(1.05); }
+}
+
 .scad__chip {
   display: inline-flex; align-items: center; gap: 0.15rem;
   font-size: 0.72rem; font-weight: 650;

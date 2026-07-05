@@ -157,6 +157,7 @@ export class EventiCalendarioComponent implements OnInit, OnChanges, OnDestroy {
 
   onClickGiornoVuoto(day: CalDay): void {
     if (!day.inMonth || !this.authService.isAdmin()) return;
+    if (day.isPast && !day.isToday) return; // no eventi nel passato
     import('./evento-form-dialog.component').then(m => {
       this.dialog.open(m.EventoFormDialogComponent, {
         width: '700px',

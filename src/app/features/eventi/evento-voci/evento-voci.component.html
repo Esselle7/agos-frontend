@@ -1,0 +1,221 @@
+@if (loading()) {
+  <div class="voci-loading"><mat-spinner diameter="28" /></div>
+} @else {
+  <agos-help-note tono="info" [collapsed]="true" titolo="Come funziona preventivo / consuntivo">
+    <p>Ogni riga è <strong>quantità × prezzo unitario</strong>. Scegli la voce dal
+      <strong>listino</strong> (il prezzo si compila da solo) e inserisci la quantità: comporrai
+      così il <strong>preventivo</strong>. Dal giorno dell'evento potrai indicare la
+      <strong>quantità consuntivata</strong> (es. 5 caraffe preventivate, 6 servite) e vedrai lo
+      <strong>scostamento</strong> riga per riga.</p>
+    <p>Queste voci <strong>non generano movimenti</strong>: descrivono ciò che il cliente paga.
+      Gli incassi reali (caparra, acconti, saldo) si registrano nei pagamenti.</p>
+  </agos-help-note>
+
+  <!-- Aggiunta rapida dei default guidati mancanti -->
+  @if (!isLocked && suggeriti().length) {
+    <div class="voci-suggeriti">
+      <span class="voci-suggeriti-label">Aggiungi:</span>
+      @for (s of suggeriti(); track s.id) {
+        <button mat-stroked-button class="voci-chip" (click)="startAdd(s.id, s.prezzoDefault)">
+          <mat-icon class="icon-xs">add</mat-icon> {{ s.label }}
+        </button>
+      }
+    </div>
+  }
+
+  <div class="voci-table-wrap">
+    <table class="voci-table">
+      <thead>
+        <tr>
+          <th class="col-label">Voce</th>
+          <th class="col-num">Prezzo</th>
+          <th class="col-num">Q.tà prev.</th>
+          <th class="col-num">Preventivo</th>
+          <th class="col-num">Q.tà cons.</th>
+          <th class="col-num">Consuntivo</th>
+          <th class="col-num">Δ</th>
+          <th class="col-act"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of voci(); track v.id) {
+          @if (editingId() === v.id) {
+            <!-- Riga in modifica -->
+            <tr class="voci-row voci-row--edit">
+              <td class="col-label">{{ v.label }}</td>
+              <td class="col-num">
+                <input class="cell-num" type="number" min="0" step="0.01"
+                       [formControl]="editForm.controls.prezzoUnitario" aria-label="Prezzo unitario" />
+              </td>
+              <td class="col-num">
+                <input class="cell-num" type="number" min="0" step="1"
+                       [formControl]="editForm.controls.quantitaPreventivo" aria-label="Quantità preventivo" />
+              </td>
+              <td class="col-num col-strong">{{ editPreviewPrev() | euro }}</td>
+              <td class="col-num">
+                @if (consuntivabile()) {
+                  <input class="cell-num" type="number" min="0" step="1"
+                         [formControl]="editForm.controls.quantitaConsuntivo" aria-label="Quantità consuntivo" />
+                } @else {
+                  <span class="voci-hint" [matTooltip]="'Disponibile dal ' + evento.dataEvento">dal giorno evento</span>
+                }
+              </td>
+              <td class="col-num col-strong">{{ editPreviewCons() != null ? (editPreviewCons() | euro) : '—' }}</td>
+              <td class="col-num">—</td>
+              <td class="col-act">
+                <button mat-icon-button color="primary" [disabled]="saving()" (click)="submitEdit(v)" matTooltip="Salva">
+                  <mat-icon>check</mat-icon>
+                </button>
+                <button mat-icon-button [disabled]="saving()" (click)="cancelEdit()" matTooltip="Annulla">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </td>
+            </tr>
+          } @else {
+            <!-- Riga in visualizzazione -->
+            <tr class="voci-row">
+              <td class="col-label">
+                <span class="voci-name">{{ v.label }}</span>
+                @if (v.origine === 'COSTO_DIRETTO') {
+                  <mat-icon class="icon-xs voci-badge" matTooltip="Ricarico da costo diretto">link</mat-icon>
+                }
+                @if (v.importoPreventivo === 0) {
+                  <span class="voci-tag">omaggio</span>
+                }
+              </td>
+              <td class="col-num voci-muted">{{ v.prezzoUnitario | euro }}</td>
+              <td class="col-num">{{ v.quantitaPreventivo }}</td>
+              <td class="col-num col-strong">{{ v.importoPreventivo | euro }}</td>
+              <td class="col-num">{{ v.quantitaConsuntivo != null ? v.quantitaConsuntivo : '—' }}</td>
+              <td class="col-num col-strong">{{ v.importoConsuntivo != null ? (v.importoConsuntivo | euro) : '—' }}</td>
+              <td class="col-num"
+                  [class.delta-pos]="(v.scostamento ?? 0) > 0"
+                  [class.delta-neg]="(v.scostamento ?? 0) < 0">
+                {{ v.scostamento != null ? ((v.scostamento > 0 ? '+' : '') + (v.scostamento | euro)) : '—' }}
+              </td>
+              <td class="col-act">
+                @if (!isLocked) {
+                  <button mat-icon-button (click)="startEdit(v)" matTooltip="Modifica">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  @if (v.origine === 'COSTO_DIRETTO') {
+                    <button mat-icon-button disabled matTooltip="Rimuovi il costo diretto collegato">
+                      <mat-icon>lock</mat-icon>
+                    </button>
+                  } @else {
+                    <button mat-icon-button (click)="remove(v)" matTooltip="Rimuovi">
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  }
+                }
+              </td>
+            </tr>
+          }
+        } @empty {
+          <tr><td colspan="8" class="voci-empty">
+            Nessuna voce. Aggiungi <strong>Menù adulti</strong>, <strong>Menù bambini</strong> o scegli dal listino.
+          </td></tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr class="voci-total">
+          <td class="col-label">Totale</td>
+          <td class="col-num"></td>
+          <td class="col-num"></td>
+          <td class="col-num col-strong">{{ totalePreventivo() | euro }}</td>
+          <td class="col-num"></td>
+          <td class="col-num col-strong">{{ totaleConsuntivo() | euro }}</td>
+          <td class="col-num"
+              [class.delta-pos]="scostamento() > 0"
+              [class.delta-neg]="scostamento() < 0">
+            {{ (scostamento() > 0 ? '+' : '') + (scostamento() | euro) }}
+          </td>
+          <td class="col-act"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Pannello di aggiunta voce -->
+  @if (!isLocked) {
+    @if (adding()) {
+      <div class="voci-add">
+        @if (consuntivabile()) {
+          <mat-button-toggle-group class="voci-mode" [value]="addMode()"
+                                   (change)="setMode($event.value)" aria-label="Tipo di voce">
+            <mat-button-toggle value="PREV">Preventivata</mat-button-toggle>
+            <mat-button-toggle value="CONS">Solo a consuntivo</mat-button-toggle>
+          </mat-button-toggle-group>
+        }
+        <div class="voci-add-grid">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="fld-voce">
+            <mat-label>Voce (listino)</mat-label>
+            <mat-select [formControl]="addForm.controls.catalogoId"
+                        (selectionChange)="onListinoChange($event.value)">
+              @for (c of catalogo(); track c.id) {
+                <mat-option [value]="c.id">
+                  <span class="opt-label">{{ c.label }}</span>
+                  @if (c.prezzoDefault != null) {
+                    <span class="opt-price">{{ c.prezzoDefault | euro }}@if (c.unita) {/{{ c.unita }}}</span>
+                  }
+                </mat-option>
+              }
+              <mat-option [value]="'NEW'">➕ Nuova voce (fuori listino)…</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          @if (isNewVoce()) {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="fld-label">
+              <mat-label>Nome voce</mat-label>
+              <input matInput [formControl]="addForm.controls.label" placeholder="es. Torta nuziale" />
+            </mat-form-field>
+          }
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="fld-sm">
+            <mat-label>Prezzo €</mat-label>
+            <input matInput type="number" min="0" step="0.01"
+                   [readonly]="isOmaggio()" [formControl]="addForm.controls.prezzoUnitario" />
+          </mat-form-field>
+
+          @if (addMode() === 'PREV') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="fld-sm">
+              <mat-label>Q.tà</mat-label>
+              <input matInput type="number" min="0" step="1" [formControl]="addForm.controls.quantitaPreventivo" />
+            </mat-form-field>
+          } @else {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="fld-sm">
+              <mat-label>Q.tà consuntivo</mat-label>
+              <input matInput type="number" min="0" step="1" [formControl]="addForm.controls.quantitaConsuntivo" />
+            </mat-form-field>
+          }
+
+          <mat-checkbox class="fld-omaggio" [formControl]="addForm.controls.omaggio"
+                        (change)="onOmaggioChange($event.checked)"
+                        matTooltip="Voce gratuita: prezzo fissato a 0">Omaggio</mat-checkbox>
+
+          <div class="voci-add-preview">
+            <span class="voci-add-preview-label">{{ addMode() === 'CONS' ? 'Consuntivo' : 'Preventivo' }}</span>
+            <span class="voci-add-preview-val">
+              {{ (addMode() === 'CONS' ? addPreviewCons() : addPreview()) | euro }}
+            </span>
+          </div>
+        </div>
+        <p class="voci-add-hint">
+          @if (addMode() === 'CONS') {
+            Voce comparsa <strong>solo a consuntivo</strong>: il preventivo resta vuoto in automatico.
+          } @else {
+            Spunta <strong>Omaggio</strong> per una voce gratuita (prezzo 0).
+          }
+        </p>
+        <div class="voci-add-actions">
+          <button mat-flat-button color="primary" [disabled]="saving()" (click)="submitAdd()">Aggiungi</button>
+          <button mat-button [disabled]="saving()" (click)="cancelAdd()">Annulla</button>
+        </div>
+      </div>
+    } @else {
+      <button mat-stroked-button color="primary" class="voci-add-btn" (click)="startAdd()">
+        <mat-icon>add</mat-icon> Aggiungi voce
+      </button>
+    }
+  }
+}

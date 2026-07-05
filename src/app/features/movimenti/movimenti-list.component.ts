@@ -238,7 +238,8 @@ export class MovimentiListComponent implements OnInit, OnDestroy {
     return `${d}/${m}/${y}`;
   }
 
-  truncate(str: string, len = 40): string {
+  truncate(str: string | null | undefined, len = 40): string {
+    if (!str) return '';
     return str.length > len ? str.slice(0, len) + '…' : str;
   }
 

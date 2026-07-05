@@ -138,7 +138,10 @@ interface CespiteForm {
         }
 
         @if (!form()) {
-          <button class="btn-add" (click)="apriForm(null)"><mat-icon>add</mat-icon> Aggiungi cespite</button>
+          <div class="cesp-actions">
+            <button class="btn-add" (click)="apriForm(null)"><mat-icon>add</mat-icon> Aggiungi cespite (bene già posseduto)</button>
+            <a class="btn-add btn-add--alt" routerLink="/libro-cespiti"><mat-icon>shopping_cart</mat-icon> Nuovi acquisti → Libro cespiti</a>
+          </div>
         } @else {
           <div class="cform">
             <div class="cform__title">{{ form()!.id ? 'Modifica cespite' : 'Nuovo cespite' }}</div>
@@ -277,7 +280,8 @@ export class SituazioneInizialeComponent {
     }).subscribe({
       next: ({ conti, cespiti, piano }) => {
         this.saldi.set(conti.map(c => this.toRow(c)));
-        this.cespiti.set(cespiti);
+        // Solo il libro iniziale: gli acquisti nuovi (con movimento collegato) vivono in /libro-cespiti
+        this.cespiti.set(cespiti.filter(c => c.movimentoAcquistoId == null));
         this.contiCapex.set(piano.filter(p => /^50\.\d+\.\d+/.test(p.codice)).sort((a, b) => a.codice.localeCompare(b.codice)));
         this.loading.set(false);
       },
@@ -355,12 +359,16 @@ export class SituazioneInizialeComponent {
     if (!confirm(`Eliminare il cespite "${c.descrizione}"?`)) return;
     this.cespitiSvc.delete(c.id).subscribe({
       next: () => { this.snack.open('Cespite eliminato', undefined, { duration: 2000 }); this.ricaricaCespiti(); },
-      error: () => this.snack.open('Eliminazione non riuscita.', 'OK', { duration: 4000 }),
+      error: err => this.snack.open(err?.error?.message ?? 'Eliminazione non riuscita.', 'OK', { duration: 5000 }),
     });
   }
 
+
   private ricaricaCespiti(): void {
-    this.cespitiSvc.getAll().subscribe({ next: l => this.cespiti.set(l), error: () => {} });
+    this.cespitiSvc.getAll().subscribe({
+      next: l => this.cespiti.set(l.filter(c => c.movimentoAcquistoId == null)),
+      error: () => {},
+    });
   }
 
   eur(v: number): string {

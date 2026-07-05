@@ -13,6 +13,8 @@ export const API_PATHS = {
   CESPITI:         '/api/cespiti',
   CESPITI_ID:      (id: string) => `/api/cespiti/${id}`,
   CESPITI_CATEGORIA: '/api/cespiti/categoria',
+  CESPITI_ACQUISTO: '/api/cespiti/acquisto',
+  CESPITI_LIQUIDAZIONE: (id: string) => `/api/cespiti/${id}/liquidazione`,
   CATEGORIE:       '/api/categorie',
   FORNITORI:       '/api/fornitori',
   PIANO_DEI_CONTI: '/api/piano-dei-conti',

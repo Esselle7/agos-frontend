@@ -216,20 +216,37 @@
           in momenti diversi.</p>
       </agos-help-note>
 
-      <div class="preventivo-row">
-        <span class="preventivo-label">Preventivo totale</span>
-        <span class="preventivo-amount">{{ (ev.importoTotalePreviventivato ?? 0) | euro }}</span>
+      <!-- Vista a barre comparativa: preventivo vs consuntivo vs incassato -->
+      <div class="cmp-bars">
+        <div class="cmp-row">
+          <span class="cmp-label">Preventivo</span>
+          <div class="cmp-track">
+            <div class="cmp-fill cmp-fill--prev" [style.width.%]="barPct(ev.importoTotalePreviventivato, ev)"></div>
+          </div>
+          <span class="cmp-val">{{ (ev.importoTotalePreviventivato ?? 0) | euro }}</span>
+        </div>
+
+        <div class="cmp-row">
+          <span class="cmp-label">Consuntivo</span>
+          <div class="cmp-track">
+            <div class="cmp-fill cmp-fill--cons" [style.width.%]="barPct(dovutoCliente(ev), ev)"></div>
+          </div>
+          <span class="cmp-val">{{ dovutoCliente(ev) | euro }}</span>
+        </div>
+
+        <div class="cmp-row">
+          <span class="cmp-label">Incassato</span>
+          <div class="cmp-track">
+            <div class="cmp-fill cmp-fill--inc" [style.width.%]="barPct(ev.importoIncassato, ev)"></div>
+          </div>
+          <span class="cmp-val">{{ (ev.importoIncassato ?? 0) | euro }}</span>
+        </div>
       </div>
 
-      @if (ev.importoTotalePreviventivato) {
-        <mat-progress-bar
-          mode="determinate"
-          [value]="ev.percentualeIncassata ?? 0"
-          [style.--mdc-linear-progress-active-indicator-color]="progressColor(ev.percentualeIncassata)"
-          style="margin:12px 0;height:8px;border-radius:4px"
-        />
-        <div class="pct-label">{{ (ev.percentualeIncassata ?? 0) | number:'1.0-1' }}% incassato</div>
-      }
+      <div class="saldo-corrispondere" [class.saldo-ok]="saldoDaCorrispondere(ev) <= 0.01">
+        <span>{{ saldoDaCorrispondere(ev) <= 0.01 ? 'Saldato' : 'Saldo da corrispondere' }}</span>
+        <strong>{{ saldoDaCorrispondere(ev) | euro }}</strong>
+      </div>
 
       <div class="financial-grid">
         <div class="fin-item green">
@@ -247,6 +264,16 @@
         <div class="fin-item" [class.green]="(ev.profitto ?? 0) >= 0" [class.red]="(ev.profitto ?? 0) < 0">
           <span class="fin-label">Profitto</span>
           <span class="fin-value">{{ ev.profitto | euro }}</span>
+        </div>
+        <div class="fin-item">
+          <span class="fin-label">Consuntivo</span>
+          <span class="fin-value">{{ ev.totaleConsuntivato | euro }}</span>
+        </div>
+        <div class="fin-item"
+             [class.green]="(ev.scostamentoConsuntivo ?? 0) > 0"
+             [class.red]="(ev.scostamentoConsuntivo ?? 0) < 0">
+          <span class="fin-label">Δ Cons/Prev</span>
+          <span class="fin-value">{{ ((ev.scostamentoConsuntivo ?? 0) > 0 ? '+' : '') + (ev.scostamentoConsuntivo | euro) }}</span>
         </div>
       </div>
     </div>
@@ -310,12 +337,15 @@
       </app-evento-costi-diretti>
     }
 
-    <!-- ====== MONITORING PREVENTIVATO (solo ADMIN) ====== -->
+    <!-- ====== VOCI PREVENTIVO / CONSUNTIVO (solo ADMIN) ====== -->
     @if (authService.isAdmin()) {
-      <app-evento-preventivo-monitoring
+    <div class="section">
+      <h2 class="section-title">Preventivo / Consuntivo</h2>
+      <app-evento-voci
         [evento]="ev"
         (updated)="onCostiUpdated()">
-      </app-evento-preventivo-monitoring>
+      </app-evento-voci>
+    </div>
     }
 
     <!-- ====== CONTATTO + PARTECIPANTI ====== -->

@@ -179,11 +179,19 @@
                 {{ economico!.ebitdaPrevisto | euro }}
               </span>
             </div>
+            @if (economico!.ammortamentiPrevisti > 0) {
+              <div class="fc-riepilogo__row">
+                <span>− Ammortamenti (cespiti)</span>
+                <span class="text-danger">{{ economico!.ammortamentiPrevisti | euro }}</span>
+              </div>
+            }
             @if (economico!.oneriFinanziariPrevisti > 0) {
               <div class="fc-riepilogo__row">
                 <span>− Oneri finanziari previsti</span>
                 <span class="text-danger">{{ economico!.oneriFinanziariPrevisti | euro }}</span>
               </div>
+            }
+            @if (economico!.ammortamentiPrevisti > 0 || economico!.oneriFinanziariPrevisti > 0) {
               <div class="fc-riepilogo__row fc-riepilogo__row--total">
                 <span>EBIT previsto</span>
                 <span [class.text-success]="economico!.ebitPrevisto >= 0"
@@ -311,7 +319,8 @@
           { v: 'MOVIMENTO', l: 'Movimenti' },
           { v: 'EVENTO', l: 'Eventi' },
           { v: 'RATA_RICORRENTE', l: 'Spese Ricorrenti' },
-          { v: 'STIPENDIO', l: 'Stipendi' }
+          { v: 'STIPENDIO', l: 'Stipendi' },
+          { v: 'AMMORTAMENTO', l: 'Ammortamenti' }
         ]; track cat.v) {
           <button
             mat-stroked-button

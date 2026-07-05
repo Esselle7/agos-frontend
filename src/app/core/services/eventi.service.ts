@@ -12,6 +12,9 @@ import {
   EventoDTO,
   EventoPartecipanteDTO,
   EventoUpdateRequest,
+  EventoVoceDTO,
+  EventoVoceRequest,
+  EventoVoceCatalogoDTO,
   EventiDashboardDTO,
   PagamentoEventoDTO,
   PagamentoRequest,
@@ -189,6 +192,39 @@ export class EventiService {
     return this.http.delete<void>(
       `${environment.apiBaseUrl}${API_PATHS.EVENTI}/${eventoId}/preventivo-tracking/${trackingId}`
     );
+  }
+
+  // ── Voci preventivo / consuntivo ───────────────────────────────────────────
+  getVociCatalogo(): Observable<EventoVoceCatalogoDTO[]> {
+    return this.http.get<EventoVoceCatalogoDTO[]>(
+      `${environment.apiBaseUrl}${API_PATHS.EVENTI}/voci-catalogo`
+    );
+  }
+
+  getVoci(eventoId: string): Observable<EventoVoceDTO[]> {
+    return this.http.get<EventoVoceDTO[]>(
+      `${environment.apiBaseUrl}${API_PATHS.EVENTI}/${eventoId}/voci`
+    );
+  }
+
+  aggiungiVoce(eventoId: string, req: EventoVoceRequest): Observable<EventoVoceDTO> {
+    return this.http.post<EventoVoceDTO>(
+      `${environment.apiBaseUrl}${API_PATHS.EVENTI}/${eventoId}/voci`,
+      req
+    ).pipe(tap(() => this.invalidateCalendarCache()));
+  }
+
+  updateVoce(voceId: number, req: EventoVoceRequest): Observable<EventoVoceDTO> {
+    return this.http.put<EventoVoceDTO>(
+      `${environment.apiBaseUrl}${API_PATHS.EVENTI}/voci/${voceId}`,
+      req
+    ).pipe(tap(() => this.invalidateCalendarCache()));
+  }
+
+  rimuoviVoce(voceId: number): Observable<void> {
+    return this.http.delete<void>(
+      `${environment.apiBaseUrl}${API_PATHS.EVENTI}/voci/${voceId}`
+    ).pipe(tap(() => this.invalidateCalendarCache()));
   }
 
   // ── Ore personale su evento ────────────────────────────────────────────────

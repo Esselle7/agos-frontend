@@ -15,6 +15,7 @@ import { ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
@@ -23,6 +24,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { EventiService } from '../../../core/services/eventi.service';
+import { BuService } from '../../../core/services/bu.service';
 import {
   EventoCostoDirettoDTO,
   EventoCostoDirettoRequest,
@@ -30,9 +32,11 @@ import {
   TipoCostoEvento,
   VoceCostoEvento,
 } from '../../../core/models/eventi.models';
+import { BusinessUnitDTO } from '../../../core/models/anagrafica.models';
 import { EuroPipe } from '../../../shared/pipes/euro.pipe';
 import { CurrencyInputComponent } from '../../../shared/components/currency-input/currency-input.component';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { HelpNoteComponent } from '../../../shared/components/help-note/help-note.component';
 
 interface CostoCard {
   tipoCosto: TipoCostoEvento;
@@ -57,6 +61,7 @@ const CARD_ICONS: Record<VoceCostoEvento, string> = {
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
@@ -65,6 +70,7 @@ const CARD_ICONS: Record<VoceCostoEvento, string> = {
     NgTemplateOutlet,
     EuroPipe,
     CurrencyInputComponent,
+    HelpNoteComponent,
   ],
   templateUrl: './evento-costi-diretti.component.html',
   styleUrls: ['./evento-costi-diretti.component.scss'],
@@ -74,9 +80,12 @@ export class EventoCostiDirettiComponent implements OnInit {
   @Output() costiUpdated = new EventEmitter<void>();
 
   private readonly eventiService = inject(EventiService);
+  private readonly buService = inject(BuService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly cdr = inject(ChangeDetectorRef);
+
+  readonly businessUnits = signal<BusinessUnitDTO[]>([]);
 
   readonly fissi: CostoCard[] = [
     { tipoCosto: 'FISSO', voce: 'DJ',     label: 'DJ',             icon: 'music_note',         defaultImporto: null },
@@ -95,9 +104,11 @@ export class EventoCostiDirettiComponent implements OnInit {
   expandedKey = signal<string | null>(null);
 
   readonly form = new FormGroup({
-    etichetta: new FormControl<string | null>(null),
-    importo:   new FormControl<number | null>(null),
-    note:      new FormControl<string | null>(null),
+    etichetta:              new FormControl<string | null>(null),
+    importo:                new FormControl<number | null>(null),
+    importoAddebitoCliente: new FormControl<number | null>(null),
+    businessUnitId:         new FormControl<number | null>(null),
+    note:                   new FormControl<string | null>(null),
   });
 
   readonly costiFissi     = computed(() => this.costi().filter(c => c.tipoCosto === 'FISSO'));
@@ -108,6 +119,10 @@ export class EventoCostiDirettiComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCosti();
+    this.buService.getAll().subscribe({
+      next: bu => { this.businessUnits.set(bu); this.cdr.markForCheck(); },
+      error: () => {/* selettore BU resta vuoto → usa la BU evento lato server */},
+    });
   }
 
   private loadCosti(): void {
@@ -129,6 +144,8 @@ export class EventoCostiDirettiComponent implements OnInit {
   openCard(card: CostoCard): void {
     if (this.isOpen(card)) { this.cancelForm(); return; }
     this.form.reset();
+    // Default BU = quella dell'evento (l'utente può cambiarla)
+    this.form.controls.businessUnitId.setValue(this.evento.businessUnitId ?? null);
     if (card.defaultImporto != null) {
       this.form.controls.importo.setValue(card.defaultImporto);
     }
@@ -165,6 +182,9 @@ export class EventoCostiDirettiComponent implements OnInit {
       voce: card.voce,
       etichetta: card.voce === 'CUSTOM' ? v.etichetta!.trim() : null,
       importo: v.importo,
+      importoAddebitoCliente: (v.importoAddebitoCliente && v.importoAddebitoCliente > 0)
+        ? v.importoAddebitoCliente : null,
+      businessUnitId: v.businessUnitId ?? null,
       note: v.note ?? null,
     };
 

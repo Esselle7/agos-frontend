@@ -74,6 +74,7 @@ const NAV_SECTIONS: NavSection[] = [
       // Cassa temporaneamente disabilitata (nascosta da nav + rotte); codice mantenuto.
       // { label: 'Cassa',               icon: 'account_balance_wallet',  route: '/cassa',            adminOnly: true },
       { label: 'Spese ricorrenti',    icon: 'event_repeat',            route: '/spese-ricorrenti', adminOnly: true },
+      { label: 'Libro cespiti',       icon: 'inventory_2',             route: '/libro-cespiti',    adminOnly: true },
     ],
   },
   {

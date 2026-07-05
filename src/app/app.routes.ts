@@ -66,6 +66,15 @@ export const routes: Routes = [
         data: { roles: ['ADMIN'] },
       },
       {
+        path: 'libro-cespiti',
+        loadComponent: () =>
+          import('./features/libro-cespiti/libro-cespiti.component').then(
+            m => m.LibroCespitiComponent
+          ),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMIN'] },
+      },
+      {
         path: 'import',
         loadChildren: () =>
           import('./features/import/import.routes').then(m => m.importRoutes),

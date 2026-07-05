@@ -153,6 +153,20 @@
   &.fissi-form    { background: var(--card); border-color: var(--border-strong); }
   &.variabili-form { background: var(--card); border-color: rgba(var(--info-rgb), 0.30); }
 
+  // Stack verticale con respiro: niente più campi che si sovrappongono
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  // I campi (incl. il custom agos-currency-input, di default inline) full-width
+  agos-currency-input,
+  mat-form-field {
+    display: block;
+    width: 100%;
+  }
+
   .full { width: 100%; }
 
   .form-actions {
