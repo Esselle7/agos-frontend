@@ -61,12 +61,15 @@ dialog di cambio stato (con le stesse regole).
    - **Totale ospiti** *(obbligatorio)* e **di cui bambini**.
    - **Nome contatto** *(obbligatorio)*, **Email**, **Telefono**.
    - **Allergie e intolleranze**, **Note**.
-3. Imposta il **Preventivo totale** (l'importo concordato): serve per confermare e saldare.
-4. **Salva.** L'evento nasce in stato **Preventivato**.
+3. **Salva.** L'evento nasce in stato **Preventivato**.
+4. Il **preventivo non è più un numero da digitare**: si **compone nel dettaglio dell'evento**,
+   riga per riga, dalle **voci** (Affitto, Menu e altre). Il totale preventivato è la **somma delle
+   voci** — vedi [§10.8 Voci di preventivo / consuntivo](#108-voci-di-preventivo--consuntivo).
 
 ### Regole
 
-- Per passare a **Confermato** serve un **preventivo totale > 0**.
+- Per passare a **Confermato** serve un **totale preventivato > 0**, cioè almeno una voce di
+  preventivo valorizzata.
 - Puoi caricare un **menù in PDF** dalla scheda dell'evento.
 
 ---
@@ -129,7 +132,7 @@ entrata** collegato all'evento.
 
 Dal dettaglio puoi forzare un cambio di stato (entro le regole del ciclo di vita):
 
-- **→ Confermato:** richiede preventivo totale > 0.
+- **→ Confermato:** richiede totale preventivato > 0 (almeno una voce di preventivo).
 - **→ Saldato:** richiede residuo ≤ 1 centesimo.
 - **→ Annullato:** **solo amministratore**, con **nota di annullamento obbligatoria**.
 - Un evento **Saldato è terminale**: non si modifica più.
@@ -151,6 +154,13 @@ esterni, extra), per misurarne la redditività reale.
 evento), e il costo si somma ai **costi diretti** dell'evento. Il **Profitto** nel Riepilogo
 Finanziario si aggiorna di conseguenza (Incassato − Costi diretti).
 
+> **Addebito al cliente (ricarico).** Ogni costo diretto ha un campo facoltativo *Addebito al
+> cliente*: se lo compili, il gestionale aggiunge in automatico una **voce di preventivo** con
+> quell'importo (il ricarico che il cliente paga), **senza** creare un secondo movimento. Esempio:
+> paghi il DJ €200 e lo addebiti €250 → il costo resta €200, il preventivo sale di €250. Quella voce
+> compare nella tabella [Preventivo / Consuntivo](#108-voci-di-preventivo--consuntivo) con
+> l'icona 🔗 e **non è cancellabile da lì** (si toglie eliminando il costo diretto che la genera).
+
 ---
 
 ## 10.7 Partecipanti e ore del personale
@@ -165,19 +175,39 @@ profitto e al monitoraggio consuntivo.
 
 ---
 
-## 10.8 Preventivo vs consuntivo (monitoraggio)
+## 10.8 Voci di preventivo / consuntivo
 
-L'evento distingue tra ciò che avevi **preventivato** e ciò che è **realmente** accaduto:
+Nel dettaglio dell'evento, il riquadro **Preventivo / Consuntivo** è una **tabella di voci**: è qui
+che si costruisce il preventivo e, dal giorno dell'evento, si registra ciò che è **realmente**
+successo. Ogni riga è **quantità × prezzo unitario**.
 
-- Il **Preventivo totale** è il ricavo atteso.
-- Il **tracking preventivo** consente di annotare le voci attese di **affitto** e **catering**
-  (una sola voce per tipo) per confrontarle con il consuntivo. *Sono dati di monitoraggio: non
-  generano movimenti contabili.*
-- Il riquadro **Riepilogo Finanziario** mostra **Preventivato**, **Incassato**, **Residuo** e
-  **Profitto** sempre aggiornati.
+> **Importante.** Queste voci **non generano movimenti contabili**: descrivono *cosa* il cliente
+> paga (la composizione del prezzo). Gli incassi reali — caparra, acconti, saldo — restano quelli
+> registrati nei [pagamenti](#104-registrare-un-pagamento-caparra--acconto--saldo--penale).
 
-Così puoi capire, evento per evento, se hai rispettato il budget e quanto hai effettivamente
-guadagnato.
+### Aggiungere una voce
+
+1. Scegli la voce dal **listino** (es. *Menù adulti*, *Menù bambini*, *Affitto*): il **prezzo si
+   compila da solo** dal listino, tu inserisci la **quantità**. Per una voce non a listino scegli
+   **➕ Nuova voce (fuori listino)** e digiti nome e prezzo.
+2. I **default guidati** ancora mancanti compaiono come scorciatoie **Aggiungi:** sopra la tabella.
+3. Spunta **Omaggio** per una voce gratuita (prezzo fissato a 0).
+
+### Consuntivo e scostamento
+
+- Dal **giorno dell'evento** in poi, per ogni riga puoi indicare la **quantità consuntivata** (es.
+  5 caraffe preventivate, 6 servite): la colonna **Δ** mostra lo **scostamento** riga per riga, e
+  il piede tabella somma **Totale preventivo**, **Totale consuntivo** e scostamento complessivo.
+- Puoi anche aggiungere una voce **solo a consuntivo** (comparsa il giorno dell'evento e non
+  prevista): il suo preventivo resta a zero.
+
+### Cosa alimenta
+
+- Il **totale preventivato** (somma delle voci di preventivo) è il valore usato per **confermare**
+  e **saldare** l'evento, e appare nel **Riepilogo Finanziario** accanto a **Incassato**,
+  **Residuo** e **Profitto**, con la barra comparativa *preventivo vs consuntivo vs incassato*.
+- Le voci con l'icona 🔗 arrivano da un [costo diretto con addebito al cliente](#106-imputare-i-costi-diretti)
+  e si modificano solo da lì.
 
 ---
 
@@ -185,7 +215,8 @@ guadagnato.
 
 - **Registrare la caparra come movimento manuale invece che dal modulo Eventi.** Falla sempre da
   qui: solo così l'incasso si collega all'evento e i totali (incassato/residuo/profitto) tornano.
-- **Dimenticare il preventivo totale.** Senza, non puoi confermare né saldare.
+- **Dimenticare di comporre il preventivo.** Il totale nasce dalle **voci**: senza almeno una voce
+  valorizzata non puoi confermare né saldare.
 - **Voler annullare da dipendente.** L'annullamento è riservato all'amministratore e richiede la
   nota.
 
