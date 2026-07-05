@@ -155,9 +155,6 @@
               @for (c of catalogo(); track c.id) {
                 <mat-option [value]="c.id">
                   <span class="opt-label">{{ c.label }}</span>
-                  @if (c.prezzoDefault != null) {
-                    <span class="opt-price">{{ c.prezzoDefault | euro }}@if (c.unita) {/{{ c.unita }}}</span>
-                  }
                 </mat-option>
               }
               <mat-option [value]="'NEW'">➕ Nuova voce (fuori listino)…</mat-option>
