@@ -33,6 +33,10 @@ export class SpeseRicorrentiListComponent implements OnInit {
   readonly loading = signal(true);
   readonly error   = signal<string | null>(null);
 
+  readonly deleteTarget = signal<PlanSummaryDTO | null>(null);
+  readonly deleteError  = signal<string | null>(null);
+  readonly deleting     = signal(false);
+
   ngOnInit(): void {
     this.load();
   }
@@ -54,6 +58,33 @@ export class SpeseRicorrentiListComponent implements OnInit {
 
   goToDetail(id: string): void {
     this.router.navigate(['/spese-ricorrenti', id]);
+  }
+
+  // ── Delete (eliminazione fisica) ──────────────────────────────────────────
+
+  /** Eliminabile solo se ATTIVO e nessuna rata pagata (= nessun movimento contabile); il server ri-verifica. */
+  canDelete(plan: PlanSummaryDTO): boolean {
+    return plan.stato === 'ATTIVO' && plan.ratePaid === 0;
+  }
+
+  askDelete(plan: PlanSummaryDTO, ev: Event): void {
+    ev.stopPropagation(); // la card naviga al dettaglio
+    this.deleteError.set(null);
+    this.deleteTarget.set(plan);
+  }
+
+  confirmDelete(): void {
+    const plan = this.deleteTarget();
+    if (!plan) return;
+    this.deleting.set(true);
+    this.deleteError.set(null);
+    this.service.deletePlan(plan.id).subscribe({
+      next: () => { this.deleteTarget.set(null); this.deleting.set(false); this.load(); },
+      error: err => {
+        this.deleteError.set(err?.error?.message ?? 'Errore durante l\'eliminazione');
+        this.deleting.set(false);
+      },
+    });
   }
 
   statoClass(stato: string): string {

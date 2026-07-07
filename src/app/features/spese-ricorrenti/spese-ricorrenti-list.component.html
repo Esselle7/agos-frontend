@@ -28,7 +28,15 @@
 
           <div class="sr-card__header">
             <span class="sr-card__title">{{ plan.descrizione }}</span>
-            <span class="badge" [class]="statoClass(plan.stato)">{{ plan.stato }}</span>
+            <span class="sr-card__header-right">
+              <span class="badge" [class]="statoClass(plan.stato)">{{ plan.stato }}</span>
+              @if (canDelete(plan)) {
+                <button mat-icon-button class="sr-card__delete" (click)="askDelete(plan, $event)"
+                        matTooltip="Elimina definitivamente (possibile solo senza rate pagate)">
+                  <mat-icon>delete_forever</mat-icon>
+                </button>
+              }
+            </span>
           </div>
 
           <div class="sr-card__meta">
@@ -62,6 +70,28 @@
 
         </div>
       }
+    </div>
+  }
+
+  <!-- ── Delete confirm ── -->
+  @if (deleteTarget(); as target) {
+    <div class="sr-overlay" (click)="deleteTarget.set(null)"></div>
+    <div class="sr-modal sr-modal--warn">
+      <h3>Elimina piano definitivamente</h3>
+      <p class="text-sub">
+        Il piano <strong>{{ target.descrizione }}</strong> e tutte le sue
+        {{ target.numeroRate }} rate verranno <strong>eliminati per sempre</strong>:
+        spariranno anche da scadenzario e previsionale. L'operazione non è reversibile.
+      </p>
+      @if (deleteError()) {
+        <p class="sr-error-inline">{{ deleteError() }}</p>
+      }
+      <div class="sr-modal__actions">
+        <button mat-button (click)="deleteTarget.set(null)">Indietro</button>
+        <button mat-flat-button color="warn" (click)="confirmDelete()" [disabled]="deleting()">
+          <mat-icon>delete_forever</mat-icon> Elimina definitivamente
+        </button>
+      </div>
     </div>
   }
 

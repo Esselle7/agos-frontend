@@ -59,6 +59,16 @@
     gap: 8px;
   }
 
+  &__header-right { display: flex; align-items: center; gap: 4px; }
+
+  &__delete {
+    width: 32px; height: 32px; line-height: 32px;
+    color: var(--text-sub);
+
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    &:hover { color: var(--danger); }
+  }
+
   &__title { font-weight: 600; font-size: 1rem; color: var(--text-main); }
 
   &__meta {
@@ -116,3 +126,39 @@
 }
 
 .icon-xs { font-size: 14px; width: 14px; height: 14px; }
+
+// ── Modal conferma eliminazione (stessa grammatica del dettaglio: srd-overlay/srd-modal)
+.sr-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--text-main) 30%, transparent);
+  z-index: 100;
+}
+
+.sr-modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 101;
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  width: min(480px, 90vw);
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  h3 { margin: 0; font-size: 1.1rem; font-weight: 700; }
+  .text-sub { margin: 0; font-size: 0.875rem; color: var(--text-sub); }
+
+  &--warn h3 { color: var(--error); }
+
+  &__actions { display: flex; justify-content: flex-end; gap: 8px; }
+}
+
+.sr-error-inline {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--error);
+}
