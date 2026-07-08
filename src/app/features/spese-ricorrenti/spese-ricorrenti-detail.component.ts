@@ -57,6 +57,9 @@ export class SpeseRicorrentiDetailComponent implements OnInit {
   cancelPenale  = 0;
   showCancel    = signal(false);
 
+  showDelete    = signal(false);
+  deleteError   = signal<string | null>(null);
+
   private planId!: string;
 
   ngOnInit(): void {
@@ -152,9 +155,34 @@ export class SpeseRicorrentiDetailComponent implements OnInit {
     });
   }
 
+  // ── Delete (eliminazione fisica) ──────────────────────────────────────────
+
+  openDelete(): void {
+    this.deleteError.set(null);
+    this.showDelete.set(true);
+  }
+
+  confirmDelete(): void {
+    this.working.set(true);
+    this.deleteError.set(null);
+    this.service.deletePlan(this.planId).subscribe({
+      next: () => this.router.navigate(['/spese-ricorrenti']),
+      error: err => {
+        this.deleteError.set(err?.error?.message ?? 'Errore durante l\'eliminazione');
+        this.working.set(false);
+      },
+    });
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   isActive(): boolean { return this.plan()?.stato === 'ATTIVO'; }
+
+  /** Eliminabile solo se ATTIVO e nessuna rata pagata (= nessun movimento contabile); il server ri-verifica. */
+  canDelete(): boolean {
+    const p = this.plan();
+    return p?.stato === 'ATTIVO' && p.rate.every(r => r.stato !== 'PAID');
+  }
 
   isPast(rata: InstallmentDTO): boolean {
     return rata.stato === 'PAID' || rata.stato === 'CANCELLED';

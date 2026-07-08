@@ -38,6 +38,12 @@
           <button mat-stroked-button color="warn" (click)="showCancel.set(true)" matTooltip="Annulla piano">
             <mat-icon>cancel</mat-icon> Annulla
           </button>
+          @if (canDelete()) {
+            <button mat-stroked-button color="warn" (click)="openDelete()"
+                    matTooltip="Elimina definitivamente piano e rate (possibile solo senza rate pagate)">
+              <mat-icon>delete_forever</mat-icon> Elimina
+            </button>
+          }
         </div>
       }
     </div>
@@ -261,6 +267,28 @@
           <button mat-flat-button color="accent" (click)="confirmLiquidate()"
                   [disabled]="working() || (plan()?.saldoContoBancario ?? 0) < totaleResiduo()">
             <mat-icon>payments</mat-icon> Conferma liquidazione
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ── Delete dialog ── -->
+    @if (showDelete()) {
+      <div class="srd-overlay" (click)="showDelete.set(false)"></div>
+      <div class="srd-modal srd-modal--warn">
+        <h3>Elimina piano definitivamente</h3>
+        <p class="text-sub">
+          Il piano <strong>{{ p.descrizione }}</strong> e tutte le sue
+          {{ p.rate.length }} rate verranno <strong>eliminati per sempre</strong>:
+          spariranno anche da scadenzario e previsionale. L'operazione non è reversibile.
+        </p>
+        @if (deleteError()) {
+          <p class="srd-error-inline">{{ deleteError() }}</p>
+        }
+        <div class="srd-modal__actions">
+          <button mat-button (click)="showDelete.set(false)">Indietro</button>
+          <button mat-flat-button color="warn" (click)="confirmDelete()" [disabled]="working()">
+            <mat-icon>delete_forever</mat-icon> Elimina definitivamente
           </button>
         </div>
       </div>

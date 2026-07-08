@@ -34,6 +34,11 @@ export class SpeseRicorrentiService {
     );
   }
 
+  /** Eliminazione fisica: consentita dal server solo su piani ATTIVI senza movimenti (409 altrimenti). */
+  deletePlan(id: string): Observable<void> {
+    return this.http.delete<void>(this.base + API_PATHS.SPESE_RICORRENTI.PIANO(id));
+  }
+
   cancelPlan(id: string, importoPenale?: number, note?: string): Observable<PlanDetailDTO> {
     return this.http.post<PlanDetailDTO>(
       this.base + API_PATHS.SPESE_RICORRENTI.ANNULLA(id),
