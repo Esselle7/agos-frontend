@@ -86,8 +86,10 @@
 
   /* Conflitti */
   &__pill { display: inline-block; padding: .12rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 700; margin-right: .5rem;
-    &.warn { background: color-mix(in srgb, var(--kw-evento) 14%, var(--card)); color: var(--kw-evento); } }
-  &__conflitto { margin-bottom: 1rem; padding: 1rem 1.1rem; border-radius: 12px; }
+    &.warn { background: color-mix(in srgb, var(--kw-evento) 14%, var(--card)); color: var(--kw-evento); }
+    &.imp { background: color-mix(in srgb, var(--info) 14%, var(--card)); color: var(--info); } }
+  &__conflitto { margin-bottom: 1rem; padding: 1rem 1.1rem; border-radius: 12px; border-left: 4px solid var(--kw-evento); }
+  &__conflitto.match { border-left-color: var(--info); }
   &__conflitto-head { font-size: .92rem; color: var(--text-main); margin-bottom: .75rem; }
   &__conflitto-targets { display: flex; align-items: center; gap: 1rem; margin-bottom: .9rem; flex-wrap: wrap;
     mat-icon { color: var(--text-faint); } }
@@ -95,4 +97,30 @@
     span { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint); font-weight: 700; }
     code { background: var(--surface-sunken); padding: .2rem .45rem; border-radius: 6px; font-size: .82rem; color: var(--text-main); } }
   &__conflitto-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+  &__conflitto-expl { font-size: .85rem; color: var(--text-sub); line-height: 1.45; margin: 0 0 .5rem; }
+  &__conflitto-toggle { font-size: .82rem; margin-bottom: .4rem; }
+  &__conflitto-none { display: flex; gap: .4rem; align-items: center; font-size: .85rem; color: var(--success); margin: .4rem 0 .8rem;
+    mat-icon { color: var(--success); font-size: 18px; height: 18px; width: 18px; } }
+
+  /* Firme colpevoli di un conflitto MATCH (lista inline) */
+  &__cul-list { display: flex; flex-direction: column; gap: .5rem; margin: .3rem 0 .9rem; }
+  &__cul { background: var(--surface-sunken); border-radius: 10px; padding: .6rem .75rem; }
+  &__cul-tokens { margin-bottom: .35rem; }
+  &__cul-body { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; }
+  &__cul-target { font-size: .86rem; color: var(--text-main); font-weight: 600; }
+  &__cul-actions { display: flex; gap: .25rem; flex-wrap: wrap; }
+  &__cul-edit { display: flex; gap: .6rem; align-items: flex-start; flex-wrap: wrap; margin-top: .2rem;
+    app-coge-picker { min-width: 220px; } }
+  &__cul-bu { width: 150px; }
+  &__cul-editactions { display: flex; gap: .35rem; align-items: center; }
+
+  /* Pannello "come funziona" */
+  &__help-toggle { font-size: .82rem; margin: .75rem 0 .25rem; color: var(--text-sub); }
+  &__help { background: var(--surface-sunken); border-radius: 10px; padding: .9rem 1rem; margin-bottom: 1rem; font-size: .86rem; }
+  &__help-row { display: flex; gap: .6rem; align-items: baseline; margin-bottom: .7rem; flex-wrap: wrap;
+    p { margin: 0; color: var(--text-sub); line-height: 1.45; flex: 1; min-width: 240px; } }
+  &__help-states { display: flex; gap: 1.2rem; flex-wrap: wrap; padding-top: .5rem; border-top: 1px solid var(--border-soft, color-mix(in srgb, var(--text-faint) 20%, transparent));
+    span { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; color: var(--text-sub); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block;
+      &.on { background: var(--success); } &.conf { background: var(--kw-evento); } &.off { background: var(--text-faint); } } }
 }
