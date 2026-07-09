@@ -70,6 +70,8 @@ export const API_PATHS = {
     KEYWORD_ID:           (id: string) => `/api/movimenti/keyword/${id}`,
     KEYWORD_CONFLITTI:    '/api/movimenti/keyword/conflitti',
     KEYWORD_CONFLITTO_RISOLVI: (id: string) => `/api/movimenti/keyword/conflitti/${id}/risolvi`,
+    KEYWORD_CONFLITTO_FIRME:   (id: string) => `/api/movimenti/keyword/conflitti/${id}/firme`,
+    KEYWORD_CONFLITTI_RIVALUTA: '/api/movimenti/keyword/conflitti/rivaluta',
     NON_RICONCILIATI: '/api/movimenti/riconciliazione/non-riconciliati',
     MATCH_AUTO:       '/api/movimenti/riconciliazione/match-automatico',
     LIQUIDA:          (id: string) => `/api/movimenti/${id}/liquida`,

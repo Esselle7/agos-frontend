@@ -10,9 +10,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSelectModule } from '@angular/material/select';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin } from 'rxjs';
+import { CogePickerComponent } from '../../shared/components/coge-picker/coge-picker.component';
 
 import { MovimentiService } from '../../core/services/movimenti.service';
 import { LookupService } from '../../core/services/lookup.service';
@@ -30,7 +32,7 @@ import { KeywordCreateWizardComponent } from './keyword-create-wizard.component'
   imports: [
     NgTemplateOutlet, FormsModule, MatCardModule, MatTabsModule, MatButtonModule, MatIconModule,
     MatChipsModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, MatTooltipModule,
-    MatDialogModule,
+    MatDialogModule, MatSelectModule, CogePickerComponent,
   ],
   templateUrl: './keyword-page.component.html',
   styleUrls: ['./keyword-page.component.scss'],
@@ -51,6 +53,15 @@ export class KeywordPageComponent implements OnInit {
   coge = signal<PianoContiCogeDTO[]>([]);
   bu = signal<BusinessUnitDTO[]>([]);
   fornitori = signal<FornitoreSummaryDTO[]>([]);
+
+  // Conflitti MATCH ("In import"): firme colpevoli caricate on-demand + pannello "come funziona".
+  comeFunziona = signal(false);
+  espanso = signal<string | null>(null);                       // id conflitto espanso
+  firmeMatch = signal<Record<string, KeywordFirmaDTO[]>>({});  // id conflitto → firme in conflitto
+  // Edit inline del target di una firma colpevole (una alla volta).
+  editId = signal<string | null>(null);
+  editBu = signal<number | null>(null);
+  editCoge = signal<string | null>(null);
 
   private filtra(list: KeywordFirmaDTO[]): KeywordFirmaDTO[] {
     const q = this.filtro().trim().toUpperCase();
@@ -145,6 +156,75 @@ export class KeywordPageComponent implements OnInit {
     this.movimentiService.risolviKeywordConflitto(c.id, { azione, note: null }).subscribe({
       next: () => { this.conflitti.update(cs => cs.filter(x => x.id !== c.id)); this.carica(); this.snackBar.open('Conflitto risolto', 'OK', { duration: 2000 }); },
       error: err => this.snackBar.open(err.error?.message ?? 'Risoluzione non riuscita', 'OK', { duration: 4000 }),
+    });
+  }
+
+  // ── Conflitti MATCH: mostra e sistema le firme colpevoli ────────────────────────────
+
+  /** Firme colpevoli del conflitto espanso (o []). */
+  firmeDi(c: KeywordConflittoDTO): KeywordFirmaDTO[] {
+    return this.firmeMatch()[c.id] ?? [];
+  }
+
+  espandi(c: KeywordConflittoDTO): void {
+    if (this.espanso() === c.id) { this.espanso.set(null); return; }
+    this.espanso.set(c.id);
+    if (this.firmeMatch()[c.id]) return; // già caricate
+    this.ricaricaFirme(c.id);
+  }
+
+  private ricaricaFirme(cId: string): void {
+    this.movimentiService.getKeywordConflittoFirme(cId).subscribe({
+      next: fs => this.firmeMatch.update(m => ({ ...m, [cId]: fs })),
+      error: () => this.snackBar.open('Errore nel caricamento delle keyword in conflitto', 'OK', { duration: 4000 }),
+    });
+  }
+
+  iniziaModifica(f: KeywordFirmaDTO): void {
+    this.editId.set(f.id); this.editBu.set(f.buId); this.editCoge.set(f.cogeCodice);
+  }
+  annullaModifica(): void { this.editId.set(null); }
+  setEditCoge(c: PianoContiCogeDTO | null): void { this.editCoge.set(c?.codice ?? null); }
+
+  salvaModifica(cId: string, f: KeywordFirmaDTO): void {
+    if (!f.id || this.editBu() == null || !this.editCoge()) {
+      this.snackBar.open('Scegli BU e conto prima di salvare', 'OK', { duration: 3000 }); return;
+    }
+    const upd = { ...f, buId: this.editBu(), cogeCodice: this.editCoge() };
+    this.movimentiService.updateKeyword(f.id, upd).subscribe({
+      next: () => { this.editId.set(null); this.rivalutaEricarica(cId, 'Target aggiornato'); },
+      error: err => this.snackBar.open(err.error?.message ?? 'Aggiornamento non riuscito', 'OK', { duration: 4000 }),
+    });
+  }
+
+  disattivaFirma(cId: string, f: KeywordFirmaDTO): void {
+    if (!f.id) return;
+    this.movimentiService.updateKeyword(f.id, { ...f, stato: 'DISATTIVATA' }).subscribe({
+      next: () => this.rivalutaEricarica(cId, 'Keyword disattivata'),
+      error: err => this.snackBar.open(err.error?.message ?? 'Operazione non riuscita', 'OK', { duration: 4000 }),
+    });
+  }
+
+  eliminaFirmaConflitto(cId: string, f: KeywordFirmaDTO): void {
+    if (!f.id) return;
+    this.movimentiService.deleteKeyword(f.id).subscribe({
+      next: () => this.rivalutaEricarica(cId, 'Keyword eliminata'),
+      error: err => this.snackBar.open(err.error?.message ?? 'Eliminazione non riuscita', 'OK', { duration: 4000 }),
+    });
+  }
+
+  /** Dopo un'azione sulle firme colpevoli: il server auto-chiude i conflitti risolti e cataloga i
+   *  movimenti incastrati; poi ricarico lista e contatore. */
+  private rivalutaEricarica(cId: string, msg: string): void {
+    this.movimentiService.rivalutaKeywordConflitti().subscribe({
+      next: es => {
+        this.ricaricaFirme(cId); this.carica();
+        const parti = [msg];
+        if (es.chiusi > 0) parti.push('conflitto risolto');
+        if (es.catalogati > 0) parti.push(`${es.catalogati} movimento/i catalogato/i`);
+        this.snackBar.open(parti.join(' · '), 'OK', { duration: 3000 });
+      },
+      error: () => { this.ricaricaFirme(cId); this.carica(); },
     });
   }
 }

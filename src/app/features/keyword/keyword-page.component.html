@@ -60,23 +60,105 @@
       </mat-tab>
 
       <mat-tab label="Conflitti ({{ conflitti().length }})">
+        <!-- Pannello "come funziona": spiega i due tipi di conflitto e i tre stati della firma -->
+        <button mat-button class="kw__help-toggle" (click)="comeFunziona.set(!comeFunziona())">
+          <mat-icon>{{ comeFunziona() ? 'expand_less' : 'help_outline' }}</mat-icon>
+          Come funzionano i conflitti
+        </button>
+        @if (comeFunziona()) {
+          <div class="kw__help">
+            <div class="kw__help-row">
+              <span class="kw__pill imp">In import</span>
+              <p>Nasce <b>durante un import</b>: due o più keyword <b>già attive</b> classificano la stessa riga in modo diverso, quindi il sistema non l'ha catalogata (niente scelte alla cieca). Qui vedi <b>quali</b> keyword litigano e le sistemi: ne disattivi una, ne correggi il conto, o la elimini. Appena resta un solo target il conflitto si chiude da solo e il movimento viene catalogato.</p>
+            </div>
+            <div class="kw__help-row">
+              <span class="kw__pill warn">In apprendimento</span>
+              <p>Nasce <b>mentre insegni</b> una keyword dal triage: la regola esistente e quella che proponi puntano a conti diversi. Scegli quale tenere — «Tieni esistente» o «Usa la nuova».</p>
+            </div>
+            <div class="kw__help-states">
+              <span><i class="dot on"></i><b>Attiva</b> — in uso, cataloga gli import.</span>
+              <span><i class="dot conf"></i><b>In conflitto</b> — sospesa finché non risolvi.</span>
+              <span><i class="dot off"></i><b>Disattivata</b> — spenta a mano, ignorata.</span>
+            </div>
+          </div>
+        }
+
         @if (!conflitti().length) {
           <p class="kw__empty"><mat-icon class="kw__empty-ic">check_circle</mat-icon> Nessun conflitto. Tutto in ordine.</p>
         } @else {
-          <p class="kw__tab-hint">Per ognuno scegli quale classificazione tenere. Il sistema non sceglie da solo (niente catalogazioni cieche).</p>
+          <p class="kw__tab-hint">Il sistema non sceglie da solo: risolvi ogni conflitto e quelle righe si catalogheranno al prossimo import.</p>
           @for (c of conflitti(); track c.id) {
-            <mat-card class="kw__conflitto">
-              <div class="kw__conflitto-head"><span class="kw__pill warn">{{ c.tipo === 'MATCH' ? 'In import' : 'In apprendimento' }}</span> {{ c.descrizione }}</div>
-              <div class="kw__conflitto-targets">
-                <div class="kw__conflitto-opt"><span>Già impostata</span><code>{{ c.targetEsistente || '—' }}</code></div>
-                <mat-icon>compare_arrows</mat-icon>
-                <div class="kw__conflitto-opt"><span>Nuova proposta</span><code>{{ c.targetNuovo || '—' }}</code></div>
+            <mat-card class="kw__conflitto" [class.match]="c.tipo === 'MATCH'">
+              <div class="kw__conflitto-head">
+                <span class="kw__pill" [class.imp]="c.tipo === 'MATCH'" [class.warn]="c.tipo !== 'MATCH'">{{ c.tipo === 'MATCH' ? 'In import' : 'In apprendimento' }}</span>
+                {{ c.descrizione }}
               </div>
-              <div class="kw__conflitto-actions">
-                <button mat-stroked-button (click)="risolvi(c, 'TIENI_ESISTENTE')"><mat-icon>lock</mat-icon> Tieni esistente</button>
-                <button mat-flat-button color="primary" (click)="risolvi(c, 'USA_NUOVO')"><mat-icon>swap_horiz</mat-icon> Usa la nuova</button>
-                <button mat-button color="warn" (click)="risolvi(c, 'SCARTA')"><mat-icon>delete</mat-icon> Disattiva</button>
-              </div>
+
+              @if (c.tipo === 'MATCH') {
+                <!-- MATCH: mostra e sistema le keyword colpevoli inline -->
+                <p class="kw__conflitto-expl">Due keyword attive classificano questa riga in modo diverso. Sistemale qui sotto (disattiva, modifica o elimina): appena l'ambiguità sparisce il conflitto <b>si chiude da solo</b> e il movimento viene catalogato. In alternativa archivia l'avviso a mano.</p>
+                <button mat-button class="kw__conflitto-toggle" (click)="espandi(c)">
+                  <mat-icon>{{ espanso() === c.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+                  {{ espanso() === c.id ? 'Nascondi' : 'Mostra' }} le keyword in conflitto
+                </button>
+
+                @if (espanso() === c.id) {
+                  @if (!firmeDi(c).length) {
+                    <p class="kw__conflitto-none"><mat-icon>check_circle</mat-icon> Nessuna keyword si contende più questa riga: l'ambiguità è risolta, archivia pure l'avviso.</p>
+                  } @else {
+                    <div class="kw__cul-list">
+                      @for (f of firmeDi(c); track f.id) {
+                        <div class="kw__cul">
+                          <mat-chip-set class="kw__cul-tokens">@for (t of f.token; track t) { <mat-chip>{{ t }}</mat-chip> }</mat-chip-set>
+
+                          @if (editId() === f.id) {
+                            <div class="kw__cul-edit">
+                              <mat-form-field appearance="outline" class="kw__cul-bu">
+                                <mat-label>Business Unit</mat-label>
+                                <mat-select [value]="editBu()" (valueChange)="editBu.set($event)">
+                                  @for (b of bu(); track b.id) { <mat-option [value]="b.id">{{ b.nome }}</mat-option> }
+                                </mat-select>
+                              </mat-form-field>
+                              <app-coge-picker label="Conto COGE" [value]="editCoge()" (cogeChange)="setEditCoge($event)"></app-coge-picker>
+                              <div class="kw__cul-editactions">
+                                <button mat-flat-button color="primary" (click)="salvaModifica(c.id, f)"><mat-icon>check</mat-icon> Salva</button>
+                                <button mat-button (click)="annullaModifica()">Annulla</button>
+                              </div>
+                            </div>
+                          } @else {
+                            <div class="kw__cul-body">
+                              <span class="kw__cul-target">→ {{ cogeNome(f.cogeCodice) }} · {{ buNome(f.buId) }}</span>
+                              <div class="kw__cul-actions">
+                                <button mat-stroked-button (click)="disattivaFirma(c.id, f)" matTooltip="Spegni questa keyword (risolve subito)"><mat-icon>toggle_off</mat-icon> Disattiva</button>
+                                <button mat-button (click)="iniziaModifica(f)"><mat-icon>edit</mat-icon> Modifica</button>
+                                @if (f.origine !== 'SEED') {
+                                  <button mat-button color="warn" (click)="eliminaFirmaConflitto(c.id, f)"><mat-icon>delete</mat-icon> Elimina</button>
+                                }
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                }
+
+                <div class="kw__conflitto-actions">
+                  <button mat-flat-button color="primary" (click)="risolvi(c, 'SCARTA')"><mat-icon>archive</mat-icon> Archivia avviso</button>
+                </div>
+              } @else {
+                <!-- APPRENDIMENTO: scelta fra i due target (invariato) -->
+                <div class="kw__conflitto-targets">
+                  <div class="kw__conflitto-opt"><span>Già impostata</span><code>{{ c.targetEsistente || '—' }}</code></div>
+                  <mat-icon>compare_arrows</mat-icon>
+                  <div class="kw__conflitto-opt"><span>Nuova proposta</span><code>{{ c.targetNuovo || '—' }}</code></div>
+                </div>
+                <div class="kw__conflitto-actions">
+                  <button mat-stroked-button (click)="risolvi(c, 'TIENI_ESISTENTE')"><mat-icon>lock</mat-icon> Tieni esistente</button>
+                  <button mat-flat-button color="primary" (click)="risolvi(c, 'USA_NUOVO')"><mat-icon>swap_horiz</mat-icon> Usa la nuova</button>
+                  <button mat-button color="warn" (click)="risolvi(c, 'SCARTA')"><mat-icon>delete</mat-icon> Disattiva</button>
+                </div>
+              }
             </mat-card>
           }
         }

@@ -363,6 +363,20 @@ export class MovimentiService {
     );
   }
 
+  /** Firme attive che si contendono la riga di un conflitto MATCH ("In import"). */
+  getKeywordConflittoFirme(id: string): Observable<KeywordFirmaDTO[]> {
+    return this.http.get<KeywordFirmaDTO[]>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.KEYWORD_CONFLITTO_FIRME(id)
+    );
+  }
+
+  /** Chiude i conflitti MATCH non più ambigui e ri-cataloga i movimenti incastrati. */
+  rivalutaKeywordConflitti(): Observable<{ chiusi: number; catalogati: number }> {
+    return this.http.post<{ chiusi: number; catalogati: number }>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.KEYWORD_CONFLITTI_RIVALUTA, {}
+    );
+  }
+
   /** Anteprima delle keyword che verrebbero apprese da una descrizione (per il triage). */
   anteprimaKeyword(descrizione: string, sorgente?: string): Observable<KeywordAnteprimaDTO> {
     return this.http.post<KeywordAnteprimaDTO>(
