@@ -253,27 +253,32 @@
           <div class="triage__empty"><mat-icon>event_repeat</mat-icon><p>Nessuna spesa ricorrente da riconciliare.</p></div>
         } @else {
           <p class="text-sub triage__hint">
-            Rate di mutui/finanziamenti, leasing, canoni e cambiali. <strong>Non diventano movimenti</strong>:
-            si gestiscono nel modulo Spese Ricorrenti. Collega ognuna al piano giusto (solo collegamento, nessun effetto contabile) oppure ignorala.
+            Rate di mutui/finanziamenti, leasing, canoni, assicurazioni già addebitate in banca ma non ancora a libro.
+            <strong>Conferma</strong> per creare il movimento contabile (scegli il conto CoGe della rata), oppure <strong>ignora</strong> la riga.
           </p>
           @for (r of ricorrenti(); track r.id) {
             <div class="triage__ric">
               <div class="triage__ric-head">
-                <span class="triage__amount out">− € {{ r.importo }}</span>
+                <span class="triage__amount" [class.out]="r.tipo === 'USCITA'" [class.in]="r.tipo === 'ENTRATA'">
+                  {{ r.tipo === 'USCITA' ? '−' : '+' }} € {{ r.importo }}
+                </span>
                 <span class="triage__ric-badge">{{ r.tipoPresunto }}</span>
                 <span class="triage__date">{{ r.dataMovimento }}</span>
               </div>
               <p class="triage__desc">{{ r.descrizione }}</p>
               <div class="triage__ric-actions">
-                <mat-form-field appearance="outline" class="triage__ric-plan">
-                  <mat-label>Collega al piano ricorrente</mat-label>
-                  <mat-select [value]="pianoSel()[r.id] || null" (selectionChange)="setPiano(r.id, $event.value)">
-                    @for (p of piani(); track p.id) { <mat-option [value]="p.id">{{ p.descrizione }}</mat-option> }
-                  </mat-select>
-                </mat-form-field>
-                <button mat-flat-button color="primary" [disabled]="saving() === r.id || !pianoSel()[r.id]" (click)="collegaRicorrente(r)">
-                  @if (saving() === r.id) { <mat-spinner diameter="18"></mat-spinner> } @else { <mat-icon>link</mat-icon> }
-                  Collega
+                @if (r.tipo === 'ENTRATA') {
+                  <span class="triage__ric-fixed"><mat-icon>lock</mat-icon> Finanziamenti ricevuti (90.01.001)</span>
+                } @else {
+                  <app-coge-picker class="triage__ric-plan"
+                    label="Conto CoGe della rata" [required]="true"
+                    [value]="cogeSelRic()[r.id] ?? null"
+                    (cogeChange)="setCogeRic(r.id, $event?.id ?? null)"
+                  ></app-coge-picker>
+                }
+                <button mat-flat-button color="primary" [disabled]="saving() === r.id || !canConfermareRic(r)" (click)="confermaRicorrente(r)">
+                  @if (saving() === r.id) { <mat-spinner diameter="18"></mat-spinner> } @else { <mat-icon>check</mat-icon> }
+                  Conferma
                 </button>
                 <button mat-stroked-button [disabled]="saving() === r.id" (click)="ignoraRicorrente(r)">
                   <mat-icon>block</mat-icon> Ignora

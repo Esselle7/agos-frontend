@@ -6,7 +6,7 @@ import {
   computed,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormGroup, FormControl } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -39,8 +39,6 @@ import {
   RicorrenteParcheggiataDTO,
   MatchingDifferitoDTO,
 } from '../../core/models/movimenti.models';
-import { SpeseRicorrentiService } from '../../core/services/spese-ricorrenti.service';
-import { PlanSummaryDTO } from '../spese-ricorrenti/spese-ricorrenti.models';
 import { ImportCountsService } from '../import/import-counts.service';
 import {
   PianoContiCogeDTO,
@@ -91,12 +89,12 @@ interface EventoForm {
 })
 export class ImportTriageDialogComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly counts = inject(ImportCountsService);
   private readonly movimentiService = inject(MovimentiService);
   private readonly lookupService = inject(LookupService);
   private readonly fornitoriService = inject(FornitoriService);
   private readonly buService = inject(BuService);
-  private readonly speseService = inject(SpeseRicorrentiService);
   private readonly snackBar = inject(MatSnackBar);
 
   /** Sezione attiva (da rotta :sezione) → indice del tab (header nascosti, guida la nav laterale). */
@@ -117,10 +115,9 @@ export class ImportTriageDialogComponent implements OnInit {
   ricorrenti = signal<RicorrenteParcheggiataDTO[]>([]);
   riba = signal<TransitorioDTO[]>([]);
   matchingDiff = signal<MatchingDifferitoDTO[]>([]);
-  piani = signal<PlanSummaryDTO[]>([]);
 
-  /** selezione del piano per ogni ricorrente (id ricorrente → id piano). */
-  pianoSel = signal<Record<string, string>>({});
+  /** CoGe scelto per ogni ricorrente USCITA (id ricorrente → id coge), seedato dal suggerito. */
+  cogeSelRic = signal<Record<string, number | null>>({});
 
   /** Circonferenza del ring punteggio (r=20). */
   readonly ringCirc = 2 * Math.PI * 20;
@@ -141,15 +138,14 @@ export class ImportTriageDialogComponent implements OnInit {
   sezioneLoading = signal<string | null>(null);
 
   ngOnInit(): void {
-    // 1) Lookups UNA volta sola (coge/bu/fornitori/piani: cambiano di rado).
+    // 1) Lookups UNA volta sola (coge/bu/fornitori: cambiano di rado).
     forkJoin({
       coge: this.lookupService.getPianoConti(),
       bu: this.buService.getAll(),
       fornitori: this.fornitoriService.getList({ size: 300 }),
-      piani: this.speseService.listPlans(),
     }).subscribe({
-      next: ({ coge, bu, fornitori, piani }) => {
-        this.coge.set(coge); this.bu.set(bu); this.fornitori.set(fornitori.content); this.piani.set(piani);
+      next: ({ coge, bu, fornitori }) => {
+        this.coge.set(coge); this.bu.set(bu); this.fornitori.set(fornitori.content);
         this.loading.set(false);
         this.caricaSezione(this.sezione());
       },
@@ -161,6 +157,12 @@ export class ImportTriageDialogComponent implements OnInit {
     // 2) La sezione attiva (e i suoi dati) seguono la rotta, in modo lazy.
     this.route.paramMap.subscribe(p => {
       const s = p.get('sezione') ?? 'catalogare';
+      // "Eventi" resta nascosta (code informative, niente movimenti): deep-link → "Da catalogare".
+      // "Ricorrenti" è di nuovo azionabile (la CONFERMA crea il movimento).
+      if (s === 'eventi') {
+        this.router.navigate(['/import/smistamento/catalogare']);
+        return;
+      }
       this.sezione.set(s);
       if (!this.loading()) this.caricaSezione(s);
     });
@@ -186,7 +188,14 @@ export class ImportTriageDialogComponent implements OnInit {
           next: r => { r.content.forEach(t => this.transForms.set(t.id, this.buildTransForm())); this.riba.set(r.content); done(); }, error: fail });
         break;
       case 'ricorrenti':
-        this.movimentiService.getRicorrenti('DA_RICONCILIARE', 0, 2000).subscribe({ next: r => { this.ricorrenti.set(r.content); done(); }, error: fail });
+        this.movimentiService.getRicorrenti('DA_RICONCILIARE', 0, 2000).subscribe({
+          next: r => {
+            // Seed della select CoGe dal suggerimento backend (l'utente conferma o cambia).
+            const sel: Record<string, number | null> = {};
+            r.content.forEach(x => { sel[x.id] = x.cogeSuggeritoId; });
+            this.cogeSelRic.set(sel);
+            this.ricorrenti.set(r.content); done();
+          }, error: fail });
         break;
       case 'eventi':
         this.movimentiService.getEventiParcheggiati('DA_RICONCILIARE', 0, 2000).subscribe({
@@ -264,26 +273,33 @@ export class ImportTriageDialogComponent implements OnInit {
     });
   }
 
-  // ── Spese ricorrenti parcheggiate (V9) ───────────────────────────────────────
-  setPiano(ricorrenteId: string, planId: string): void {
-    this.pianoSel.update(m => ({ ...m, [ricorrenteId]: planId }));
+  // ── Spese ricorrenti parcheggiate (V9 + V22) ─────────────────────────────────
+  setCogeRic(ricorrenteId: string, cogeId: number | null): void {
+    this.cogeSelRic.update(m => ({ ...m, [ricorrenteId]: cogeId }));
   }
 
-  collegaRicorrente(r: RicorrenteParcheggiataDTO): void {
-    const planId = this.pianoSel()[r.id];
-    if (!planId) { this.snackBar.open('Seleziona prima un piano ricorrente', 'OK', { duration: 2500 }); return; }
+  /** Su USCITA serve un CoGe scelto; su ENTRATA il backend forza 90.01.001. */
+  canConfermareRic(r: RicorrenteParcheggiataDTO): boolean {
+    return r.tipo === 'ENTRATA' || this.cogeSelRic()[r.id] != null;
+  }
+
+  confermaRicorrente(r: RicorrenteParcheggiataDTO): void {
+    const cogeId = r.tipo === 'ENTRATA' ? null : this.cogeSelRic()[r.id] ?? null;
+    if (r.tipo === 'USCITA' && cogeId == null) {
+      this.snackBar.open('Seleziona il conto CoGe della rata', 'OK', { duration: 2500 }); return;
+    }
     this.saving.set(r.id);
-    this.movimentiService.risolviRicorrente(r.id, { azione: 'COLLEGA', recurringPlanId: planId, nota: null }).subscribe({
+    this.movimentiService.risolviRicorrente(r.id, { azione: 'CONFERMA', cogeId, nota: null }).subscribe({
       next: () => { this.saving.set(null); this.ricorrenti.update(rs => rs.filter(x => x.id !== r.id)); this.modificato = true;
         this.counts.reload();
-        this.snackBar.open('Ricorrente collegata al piano', 'OK', { duration: 2500 }); },
+        this.snackBar.open('Movimento creato dalla ricorrente', 'OK', { duration: 2500 }); },
       error: err => this.fail(err),
     });
   }
 
   ignoraRicorrente(r: RicorrenteParcheggiataDTO): void {
     this.saving.set(r.id);
-    this.movimentiService.risolviRicorrente(r.id, { azione: 'IGNORA', recurringPlanId: null, nota: null }).subscribe({
+    this.movimentiService.risolviRicorrente(r.id, { azione: 'IGNORA', cogeId: null, nota: null }).subscribe({
       next: () => { this.saving.set(null); this.ricorrenti.update(rs => rs.filter(x => x.id !== r.id)); this.modificato = true;
         this.counts.reload();
         this.snackBar.open('Ricorrente ignorata', 'OK', { duration: 2000 }); },
