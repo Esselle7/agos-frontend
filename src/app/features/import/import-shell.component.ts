@@ -37,12 +37,13 @@ export class ImportShellComponent implements OnInit {
     { label: 'Importa', icon: 'upload', link: 'bulk' },
     { label: 'Storico', icon: 'history', link: 'storico' },
   ];
+  // "Ricorrenti" è azionabile: la CONFERMA crea il movimento della rata già addebitata in banca.
+  // "Eventi" resta nascosta (i ricavi evento nascono dal modulo Eventi; CLASSIFICA è bloccata a BE).
   readonly navSmistamento: NavItem[] = [
     { label: 'Da catalogare', icon: 'inbox',        link: 'smistamento/catalogare', badge: () => this.c().catalogare },
     { label: 'Quadratura POS',icon: 'balance',      link: 'quadratura' },
-    { label: 'Effetti / RiBa',icon: 'receipt_long', link: 'smistamento/riba',       badge: () => this.c().riba },
     { label: 'Ricorrenti',    icon: 'event_repeat', link: 'smistamento/ricorrenti', badge: () => this.c().ricorrenti },
-    { label: 'Eventi',        icon: 'celebration',  link: 'smistamento/eventi',     badge: () => this.c().eventi },
+    { label: 'Effetti / RiBa',icon: 'receipt_long', link: 'smistamento/riba',       badge: () => this.c().riba },
     { label: 'Già a libro',   icon: 'join_inner',   link: 'smistamento/matching-differiti', badge: () => this.c().matchingDifferiti },
     { label: 'Duplicati',     icon: 'content_copy', link: 'smistamento/duplicati',  badge: () => this.c().duplicati },
   ];

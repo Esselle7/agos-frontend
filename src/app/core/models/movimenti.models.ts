@@ -408,12 +408,14 @@ export interface RicorrenteParcheggiataDTO {
   descrizione: string;
   tipoPresunto: string;   // MUTUO | FINANZIAMENTO | LEASING | CANONE | CAMBIALE | ASSICURAZIONE | BOLLO | RATA | ALTRO
   recurringPlanId: string | null;
-  stato: string;          // DA_RICONCILIARE | RICONCILIATA | IGNORATA
+  stato: string;          // DA_RICONCILIARE | CONFERMATA | IGNORATA | RICONCILIATA(legacy)
+  cogeSuggeritoId: number | null;
+  cogeSuggeritoCodice: string | null;
 }
 
 export interface RisolviRicorrenteRequest {
-  azione: 'COLLEGA' | 'IGNORA';
-  recurringPlanId: string | null;
+  azione: 'CONFERMA' | 'IGNORA';
+  cogeId: number | null;   // obbligatorio su CONFERMA di una USCITA; ignorato su ENTRATA
   nota: string | null;
 }
 
