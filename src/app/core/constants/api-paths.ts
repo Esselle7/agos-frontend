@@ -91,6 +91,7 @@ export const API_PATHS = {
     PIANO:          (id: string) => `/api/spese-ricorrenti/piani/${id}`,
     LIQUIDA:        (id: string) => `/api/spese-ricorrenti/piani/${id}/liquida`,
     ANNULLA:        (id: string) => `/api/spese-ricorrenti/piani/${id}/annulla`,
+    CESTINA:        (id: string) => `/api/spese-ricorrenti/piani/${id}/cestina`,
     UPDATE_RATA:    (pianoId: string, rataId: string) => `/api/spese-ricorrenti/piani/${pianoId}/rate/${rataId}`,
     SKIP_RATA:      (pianoId: string, rataId: string) => `/api/spese-ricorrenti/piani/${pianoId}/rate/${rataId}/skip`,
     PAGA_RATA:      (pianoId: string, rataId: string) => `/api/spese-ricorrenti/piani/${pianoId}/rate/${rataId}/paga`,

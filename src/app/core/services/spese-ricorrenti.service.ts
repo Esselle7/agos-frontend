@@ -39,6 +39,11 @@ export class SpeseRicorrentiService {
     return this.http.delete<void>(this.base + API_PATHS.SPESE_RICORRENTI.PIANO(id));
   }
 
+  /** Cestina: purga fisica totale di un piano ANNULLATO (rate + tutti i movimenti, penale inclusa); 409 se non ANNULLATO. */
+  purgePlan(id: string): Observable<void> {
+    return this.http.post<void>(this.base + API_PATHS.SPESE_RICORRENTI.CESTINA(id), {});
+  }
+
   cancelPlan(id: string, importoPenale?: number, note?: string): Observable<PlanDetailDTO> {
     return this.http.post<PlanDetailDTO>(
       this.base + API_PATHS.SPESE_RICORRENTI.ANNULLA(id),

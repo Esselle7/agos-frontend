@@ -60,6 +60,9 @@ export class SpeseRicorrentiDetailComponent implements OnInit {
   showDelete    = signal(false);
   deleteError   = signal<string | null>(null);
 
+  showPurge     = signal(false);
+  purgeError    = signal<string | null>(null);
+
   private planId!: string;
 
   ngOnInit(): void {
@@ -174,6 +177,25 @@ export class SpeseRicorrentiDetailComponent implements OnInit {
     });
   }
 
+  // ── Cestina (purga fisica totale di un piano ANNULLATO) ───────────────────
+
+  openPurge(): void {
+    this.purgeError.set(null);
+    this.showPurge.set(true);
+  }
+
+  confirmPurge(): void {
+    this.working.set(true);
+    this.purgeError.set(null);
+    this.service.purgePlan(this.planId).subscribe({
+      next: () => this.router.navigate(['/spese-ricorrenti']),
+      error: err => {
+        this.purgeError.set(err?.error?.message ?? 'Errore durante la cestina');
+        this.working.set(false);
+      },
+    });
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   isActive(): boolean { return this.plan()?.stato === 'ATTIVO'; }
@@ -182,6 +204,11 @@ export class SpeseRicorrentiDetailComponent implements OnInit {
   canDelete(): boolean {
     const p = this.plan();
     return p?.stato === 'ATTIVO' && p.rate.every(r => r.stato !== 'PAID');
+  }
+
+  /** Cestinabile solo se ANNULLATO; il server ri-verifica (409 PIANO_NON_ANNULLATO). */
+  canPurge(): boolean {
+    return this.plan()?.stato === 'ANNULLATO';
   }
 
   isPast(rata: InstallmentDTO): boolean {

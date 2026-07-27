@@ -37,6 +37,10 @@ export class SpeseRicorrentiListComponent implements OnInit {
   readonly deleteError  = signal<string | null>(null);
   readonly deleting     = signal(false);
 
+  readonly purgeTarget  = signal<PlanSummaryDTO | null>(null);
+  readonly purgeError   = signal<string | null>(null);
+  readonly purging      = signal(false);
+
   ngOnInit(): void {
     this.load();
   }
@@ -83,6 +87,33 @@ export class SpeseRicorrentiListComponent implements OnInit {
       error: err => {
         this.deleteError.set(err?.error?.message ?? 'Errore durante l\'eliminazione');
         this.deleting.set(false);
+      },
+    });
+  }
+
+  // ── Cestina (purga fisica totale di un piano ANNULLATO) ───────────────────
+
+  /** Cestinabile solo se ANNULLATO; il server ri-verifica (409 PIANO_NON_ANNULLATO). */
+  canPurge(plan: PlanSummaryDTO): boolean {
+    return plan.stato === 'ANNULLATO';
+  }
+
+  askPurge(plan: PlanSummaryDTO, ev: Event): void {
+    ev.stopPropagation(); // la card naviga al dettaglio
+    this.purgeError.set(null);
+    this.purgeTarget.set(plan);
+  }
+
+  confirmPurge(): void {
+    const plan = this.purgeTarget();
+    if (!plan) return;
+    this.purging.set(true);
+    this.purgeError.set(null);
+    this.service.purgePlan(plan.id).subscribe({
+      next: () => { this.purgeTarget.set(null); this.purging.set(false); this.load(); },
+      error: err => {
+        this.purgeError.set(err?.error?.message ?? 'Errore durante la cestina');
+        this.purging.set(false);
       },
     });
   }
