@@ -36,6 +36,12 @@
                   <mat-icon>delete_forever</mat-icon>
                 </button>
               }
+              @if (canPurge(plan)) {
+                <button mat-icon-button class="sr-card__delete" (click)="askPurge(plan, $event)"
+                        matTooltip="Cestina: rimuovi per sempre piano, rate e tutti i movimenti (anche pagati)">
+                  <mat-icon>delete_sweep</mat-icon>
+                </button>
+              }
             </span>
           </div>
 
@@ -90,6 +96,29 @@
         <button mat-button (click)="deleteTarget.set(null)">Indietro</button>
         <button mat-flat-button color="warn" (click)="confirmDelete()" [disabled]="deleting()">
           <mat-icon>delete_forever</mat-icon> Elimina definitivamente
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Cestina confirm ── -->
+  @if (purgeTarget(); as target) {
+    <div class="sr-overlay" (click)="purgeTarget.set(null)"></div>
+    <div class="sr-modal sr-modal--warn">
+      <h3>Cestina piano annullato</h3>
+      <p class="text-sub">
+        Il piano <strong>{{ target.descrizione }}</strong>, tutte le sue rate e
+        <strong>tutti i movimenti collegati — inclusi quelli già pagati e l'eventuale penale —</strong>
+        verranno <strong>cancellati per sempre</strong>. I saldi dei conti verranno ripristinati
+        (le uscite spariscono). L'operazione non è reversibile.
+      </p>
+      @if (purgeError()) {
+        <p class="sr-error-inline">{{ purgeError() }}</p>
+      }
+      <div class="sr-modal__actions">
+        <button mat-button (click)="purgeTarget.set(null)">Indietro</button>
+        <button mat-flat-button color="warn" (click)="confirmPurge()" [disabled]="purging()">
+          <mat-icon>delete_sweep</mat-icon> Cestina definitivamente
         </button>
       </div>
     </div>
