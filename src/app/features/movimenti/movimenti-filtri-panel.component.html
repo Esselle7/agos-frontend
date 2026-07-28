@@ -1,0 +1,226 @@
+<!-- Scrim: solo sotto i 768px, dove il pannello copre davvero la lista. -->
+<div class="mfp-scrim" (click)="chiudi.emit()" aria-hidden="true"></div>
+
+<aside class="mfp" role="dialog" aria-modal="false" aria-labelledby="mfp-titolo">
+
+  <header class="mfp__head">
+    <div class="mfp__head-text">
+      <h3 id="mfp-titolo">Filtri</h3>
+      @if (conteggio() > 0) {
+        <span class="mfp__head-count">{{ conteggio() }} attiv{{ conteggio() === 1 ? 'o' : 'i' }}</span>
+      }
+    </div>
+    <button mat-icon-button type="button" (click)="chiudi.emit()" aria-label="Chiudi i filtri">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <div class="mfp__body">
+
+    <!-- ── Periodo ─────────────────────────────────────────────────────────── -->
+    <section class="mfp__sec">
+      <h4 class="mfp__sec-title">Periodo</h4>
+
+      <div class="mfp__seg" role="radiogroup" aria-label="A quale data applicare il periodo">
+        @for (df of dateFields; track df) {
+          <button type="button" class="mfp__seg-btn" role="radio"
+                  [class.is-on]="draft().dateField === df"
+                  [attr.aria-checked]="draft().dateField === df"
+                  (click)="setDateField(df)">
+            {{ dateFieldLabel[df] }}
+          </button>
+        }
+      </div>
+      <p class="mfp__hint">{{ dateFieldHint[draft().dateField] }}</p>
+
+      <div class="mfp__row2">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Dal</mat-label>
+          <input matInput [matDatepicker]="pFrom" [value]="dataAsDate('from')"
+                 (dateChange)="setData('from', $event.value)">
+          <mat-datepicker-toggle matSuffix [for]="pFrom"></mat-datepicker-toggle>
+          <mat-datepicker #pFrom></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Al</mat-label>
+          <input matInput [matDatepicker]="pTo" [value]="dataAsDate('to')"
+                 (dateChange)="setData('to', $event.value)">
+          <mat-datepicker-toggle matSuffix [for]="pTo"></mat-datepicker-toggle>
+          <mat-datepicker #pTo></mat-datepicker>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <!-- ── Conto ───────────────────────────────────────────────────────────── -->
+    <section class="mfp__sec">
+      <h4 class="mfp__sec-title">Conto</h4>
+      <div class="mfp__chips">
+        @for (c of conti(); track c.id) {
+          <button type="button" class="mfp__chip" [class.is-on]="isSelected('contoId', c.id)"
+                  [attr.aria-pressed]="isSelected('contoId', c.id)"
+                  (click)="toggle('contoId', c.id)">{{ c.nome }}</button>
+        }
+        <button type="button" class="mfp__chip mfp__chip--ghost"
+                [class.is-on]="isSelected('contoId', SENZA_BANCA)"
+                [attr.aria-pressed]="isSelected('contoId', SENZA_BANCA)"
+                matTooltip="Movimenti non ancora attribuiti a nessun conto"
+                (click)="toggle('contoId', SENZA_BANCA)">Senza banca</button>
+      </div>
+    </section>
+
+    <!-- ── Importo e direzione ─────────────────────────────────────────────── -->
+    <section class="mfp__sec">
+      <h4 class="mfp__sec-title">Importo</h4>
+      <div class="mfp__chips">
+        <button type="button" class="mfp__chip" [class.is-on]="isSelected('tipo', 'ENTRATA')"
+                [attr.aria-pressed]="isSelected('tipo', 'ENTRATA')"
+                (click)="toggle('tipo', 'ENTRATA')">Entrate</button>
+        <button type="button" class="mfp__chip" [class.is-on]="isSelected('tipo', 'USCITA')"
+                [attr.aria-pressed]="isSelected('tipo', 'USCITA')"
+                (click)="toggle('tipo', 'USCITA')">Uscite</button>
+      </div>
+
+      <div class="mfp__row2">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Da €</mat-label>
+          <input matInput inputmode="decimal" [value]="draft().importoMin ?? ''"
+                 (input)="setImporto('importoMin', $any($event.target).value)" placeholder="0">
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>A €</mat-label>
+          <input matInput inputmode="decimal" [value]="draft().importoMax ?? ''"
+                 (input)="setImporto('importoMax', $any($event.target).value)" placeholder="nessun limite">
+        </mat-form-field>
+      </div>
+      <p class="mfp__hint">Confronto sul valore assoluto: la direzione la scegli con Entrate/Uscite.</p>
+    </section>
+
+    <!-- ── Stato e provenienza ─────────────────────────────────────────────── -->
+    <section class="mfp__sec">
+      <h4 class="mfp__sec-title">Stato</h4>
+      <div class="mfp__chips">
+        @for (s of stati; track s.value) {
+          <button type="button" class="mfp__chip" [class.is-on]="isSelected('stato', s.value)"
+                  [attr.aria-pressed]="isSelected('stato', s.value)"
+                  (click)="toggle('stato', s.value)">{{ s.label }}</button>
+        }
+      </div>
+    </section>
+
+    <section class="mfp__sec">
+      <h4 class="mfp__sec-title">Provenienza</h4>
+      <div class="mfp__chips">
+        @for (f of fonti; track f.value) {
+          <button type="button" class="mfp__chip" [class.is-on]="isSelected('fonte', f.value)"
+                  [attr.aria-pressed]="isSelected('fonte', f.value)"
+                  (click)="toggle('fonte', f.value)">{{ f.label }}</button>
+        }
+      </div>
+    </section>
+
+    <!-- ── Business unit ───────────────────────────────────────────────────── -->
+    <section class="mfp__sec">
+      <h4 class="mfp__sec-title">Business unit</h4>
+      <div class="mfp__chips">
+        @for (b of bus(); track b.id) {
+          <button type="button" class="mfp__chip mfp__chip--bu"
+                  [class.is-on]="isSelected('buId', b.id)"
+                  [attr.aria-pressed]="isSelected('buId', b.id)"
+                  [style.--bu-color]="b.colore"
+                  (click)="toggle('buId', b.id)">
+            <span class="mfp__chip-dot"></span>{{ b.nome }}
+          </button>
+        }
+      </div>
+    </section>
+
+    <!-- ── Piano dei conti ─────────────────────────────────────────────────── -->
+    <section class="mfp__sec">
+      <h4 class="mfp__sec-title">Piano dei conti</h4>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
+        <mat-label>Cerca conto</mat-label>
+        <input matInput [value]="cogeQuery()" (input)="cogeQuery.set($any($event.target).value)"
+               placeholder="es. 49.99 oppure «da classificare»">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
+        <mat-label>Conti selezionati</mat-label>
+        <mat-select multiple [value]="draft().cogeId"
+                    (valueChange)="setMulti('cogeId', $event)">
+          @for (c of cogeFiltrati(); track c.id) {
+            <mat-option [value]="c.id">
+              <span class="mfp__opt-code">{{ c.codice }}</span> {{ c.nome }}
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (cogeQuery() && cogeFiltrati().length === 0) {
+        <p class="mfp__hint">Nessun conto corrisponde a «{{ cogeQuery() }}».</p>
+      }
+    </section>
+
+    <!-- ── Collegamenti ────────────────────────────────────────────────────── -->
+    <section class="mfp__sec">
+      <h4 class="mfp__sec-title">Collegamenti</h4>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
+        <mat-label>Fornitore</mat-label>
+        <mat-select multiple [value]="draft().fornitoreId"
+                    (valueChange)="setMulti('fornitoreId', $event)">
+          @for (f of fornitori(); track f.id) {
+            <mat-option [value]="f.id">{{ f.ragioneSociale }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
+        <mat-label>Evento</mat-label>
+        <mat-select multiple [value]="draft().eventoId"
+                    (valueChange)="setMulti('eventoId', $event)">
+          @for (e of eventi(); track e.id) {
+            <mat-option [value]="e.id">{{ e.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
+        <mat-label>Metodo di pagamento</mat-label>
+        <mat-select multiple [value]="draft().metodoPagamentoId"
+                    (valueChange)="setMulti('metodoPagamentoId', $event)">
+          @for (m of metodi(); track m.id) {
+            <mat-option [value]="m.id">{{ m.descrizione }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Le categorie sono definite per business unit: senza una BU sola l'elenco non esiste. -->
+      @if (buSingolaSelezionata() !== null) {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
+          <mat-label>Categoria</mat-label>
+          <mat-select multiple [value]="draft().categoriaId"
+                      (valueChange)="setMulti('categoriaId', $event)">
+            @for (c of categorie(); track c.id) {
+              <mat-option [value]="c.id">{{ c.nome }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      } @else {
+        <p class="mfp__hint mfp__hint--locked">
+          <mat-icon>info_outline</mat-icon>
+          Le categorie cambiano da una business unit all'altra: selezionane una sola qui sopra per filtrarle.
+        </p>
+      }
+    </section>
+  </div>
+
+  <footer class="mfp__foot">
+    <button mat-stroked-button type="button" (click)="azzera()" [disabled]="conteggio() === 0">
+      Azzera tutto
+    </button>
+    <button mat-flat-button color="primary" type="button" (click)="conferma()">
+      Applica@if (conteggio() > 0) { <span>&nbsp;({{ conteggio() }})</span> }
+    </button>
+  </footer>
+</aside>

@@ -1,0 +1,229 @@
+// Pannello filtri movimenti — drawer laterale.
+// Banda z-index 100/101, coerente con gli altri overlay del progetto.
+
+:host { display: contents; }
+
+// Su desktop nessuno scrim: il punto del drawer è lasciare la tabella leggibile mentre filtri.
+.mfp-scrim { display: none; }
+
+.mfp {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 101;
+  width: min(420px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  animation: mfp-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes mfp-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+// ── Testata
+.mfp__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 8px 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--card-tint);
+  flex-shrink: 0;
+
+  h3 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main); }
+}
+
+.mfp__head-text { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+
+.mfp__head-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--tint-primary);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+// ── Corpo scorrevole
+.mfp__body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 20px 20px;
+}
+
+.mfp__sec {
+  padding: 18px 0;
+
+  & + .mfp__sec { border-top: 1px solid var(--border-soft); }
+}
+
+.mfp__sec-title {
+  margin: 0 0 12px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.mfp__hint {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-sub);
+  text-wrap: pretty;
+}
+
+.mfp__hint--locked {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--text-faint);
+  }
+}
+
+// ── Selettore segmentato (quale data)
+.mfp__seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.mfp__seg-btn {
+  flex: 1;
+  padding: 7px 6px;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text-sub);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+
+  &:hover:not(.is-on) { color: var(--text-main); }
+  &:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+  &.is-on {
+    background: var(--card);
+    color: var(--primary);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+// ── Chip a interruttore
+.mfp__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.mfp__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text-sub);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease),
+              background var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
+
+  &:hover:not(.is-on) {
+    border-color: var(--border-strong);
+    color: var(--text-main);
+  }
+  &:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+  &.is-on {
+    border-color: var(--primary);
+    background: var(--tint-primary);
+    color: var(--primary);
+    font-weight: 600;
+  }
+}
+
+// "Senza banca" non è un conto: tratteggio per dire che è una categoria a parte.
+.mfp__chip--ghost {
+  border-style: dashed;
+}
+
+.mfp__chip--bu .mfp__chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bu-color, var(--text-faint));
+  flex-shrink: 0;
+}
+
+// ── Campi
+.mfp__row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mfp__full { width: 100%; margin-top: 10px; }
+
+.mfp__opt-code {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  margin-right: 8px;
+}
+
+// ── Piede
+.mfp__foot {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--card);
+  flex-shrink: 0;
+
+  button { flex: 1; }
+}
+
+// ── Mobile: qui il pannello copre davvero, quindi serve lo scrim
+@media (max-width: 768px) {
+  .mfp-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: color-mix(in srgb, var(--text-main) 32%, transparent);
+  }
+
+  .mfp { width: 100vw; }
+  .mfp__row2 { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mfp { animation: none; }
+  .mfp__seg-btn,
+  .mfp__chip { transition: none; }
+}

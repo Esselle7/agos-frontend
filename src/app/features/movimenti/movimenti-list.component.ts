@@ -2,6 +2,7 @@ import {
   Component,
   OnInit,
   OnDestroy,
+  computed,
   signal,
   inject,
   ChangeDetectionStrategy,
@@ -16,19 +17,15 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
-import { DateMaskDirective } from '../../shared/directives/date-mask.directive';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
-import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
+import { Subject, catchError, debounceTime, distinctUntilChanged, forkJoin, of, switchMap, takeUntil } from 'rxjs';
 import { MovimentiService, MovimentiFilter } from '../../core/services/movimenti.service';
 import { ContiService } from '../../core/services/conti.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -41,6 +38,11 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader/skeleton-loader.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { FiltriApplicati, MovimentiFiltriPanelComponent } from './movimenti-filtri-panel.component';
+import {
+  EtichetteFiltri, FiltroChip, MovimentiFiltri,
+  chipsDa, contaFiltriAttivi, filtriVuoti, rimuoviChip, toMovimentiFilter,
+} from './movimenti-filtri.model';
 
 @Component({
   selector: 'app-movimenti-list',
@@ -54,13 +56,9 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     MatPaginatorModule,
     MatFormFieldModule,
     MatInputModule,
-    MatSelectModule,
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
-    MatDatepickerModule,
-    MatNativeDateModule,
-    DateMaskDirective,
     MatProgressBarModule,
     MatProgressSpinnerModule,
     MatMenuModule,
@@ -68,6 +66,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     BadgeComponent,
     EmptyStateComponent,
     SkeletonLoaderComponent,
+    MovimentiFiltriPanelComponent,
   ],
   templateUrl: './movimenti-list.component.html',
   styleUrls: ['./movimenti-list.component.scss'],
@@ -97,16 +96,21 @@ export class MovimentiListComponent implements OnInit, OnDestroy {
   loading = signal(false);
   buMap = signal<Map<number, BusinessUnitDTO>>(new Map());
 
-  // Filter controls
+  /** La ricerca testuale resta sempre visibile: è il filtro più usato, nasconderla costerebbe un clic ogni volta. */
   readonly searchControl = new FormControl<string>('', { nonNullable: true });
-  readonly tipoControl = new FormControl<string>('', { nonNullable: true });
-  readonly buControl = new FormControl<number | null>(null);
-  readonly statoControl = new FormControl<string>('', { nonNullable: true });
-  readonly fromControl = new FormControl<Date | null>(null);
-  readonly toControl = new FormControl<Date | null>(null);
+
+  // ── Filtri avanzati (docs/specs/movimenti-filtri-avanzati.md)
+  readonly filtri = signal<MovimentiFiltri>(filtriVuoti());
+  readonly etichette = signal<EtichetteFiltri>({});
+  readonly panelAperto = signal(false);
+  readonly nFiltriAttivi = computed(() => contaFiltriAttivi(this.filtri()));
+  readonly chips = computed(() => chipsDa(this.filtri(), this.etichette()));
 
   private currentPage = 0;
   private currentSize = 20;
+
+  /** Ogni emissione = una richiesta di ricarica. Vedi il switchMap in ngOnInit. */
+  private readonly ricarica$ = new Subject<void>();
 
   ngOnInit(): void {
     this.contiService.getAll().pipe(takeUntil(this.destroy$)).subscribe(list => {
@@ -115,6 +119,36 @@ export class MovimentiListComponent implements OnInit, OnDestroy {
 
     this.buService.getAll().subscribe(units => {
       this.buMap.set(new Map(units.map(u => [u.id, u])));
+    });
+
+    // switchMap ANNULLA la richiesta precedente quando ne parte una nuova.
+    // Senza, una risposta più vecchia può atterrare dopo quella nuova e sovrascriverla:
+    // in pratica la lista mostrava i dati NON filtrati sotto le chip di un filtro attivo.
+    this.ricarica$.pipe(
+      switchMap(() => {
+        this.loading.set(true);
+        const base = this.buildFilter();
+        return forkJoin({
+          lista: this.movimentiService.getList({
+            ...base, page: this.currentPage, size: this.currentSize, sort: 'dataMovimento,desc',
+          }),
+          // Il riepilogo è accessorio: se fallisce non deve far cadere la lista.
+          sommario: this.movimentiService.getSommario(base).pipe(catchError(() => of(null))),
+        }).pipe(
+          // L'errore si ferma qui dentro, altrimenti spegnerebbe lo stream per sempre.
+          catchError(() => {
+            this.snackBar.open('Errore nel caricamento dei movimenti', 'OK', { duration: 3000 });
+            return of(null);
+          }),
+        );
+      }),
+      takeUntil(this.destroy$),
+    ).subscribe(res => {
+      if (res) {
+        this.result.set(res.lista);
+        this.sommario.set(res.sommario);
+      }
+      this.loading.set(false);
     });
 
     this.searchControl.valueChanges.pipe(
@@ -135,51 +169,43 @@ export class MovimentiListComponent implements OnInit, OnDestroy {
   }
 
   loadData(): void {
-    this.loading.set(true);
-    const baseFilter = this.buildFilter();
-    const listFilter: MovimentiFilter = { ...baseFilter, page: this.currentPage, size: this.currentSize, sort: 'dataMovimento,desc' };
-
-    this.movimentiService.getList(listFilter).subscribe({
-      next: res => {
-        this.result.set(res);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loading.set(false);
-        this.snackBar.open('Errore nel caricamento dei movimenti', 'OK', { duration: 3000 });
-      },
-    });
-
-    this.movimentiService.getSommario(baseFilter).subscribe({
-      next: s => { this.sommario.set(s); },
-      error: () => {},
-    });
+    this.ricarica$.next();
   }
 
   private buildFilter(): MovimentiFilter {
-    const filter: MovimentiFilter = {};
-    const search = this.searchControl.value.trim();
-    if (search) filter.search = search;
-    const tipo = this.tipoControl.value;
-    if (tipo === 'ENTRATA' || tipo === 'USCITA') filter.tipo = tipo;
-    const buId = this.buControl.value;
-    if (buId != null) filter.buId = buId;
-    const stato = this.statoControl.value;
-    if (stato) filter.stato = stato;
-    const from = this.fromControl.value;
-    if (from) filter.from = this.toIso(from);
-    const to = this.toControl.value;
-    if (to) filter.to = this.toIso(to);
-    return filter;
+    // La casella di ricerca vive fuori dal pannello: la si innesta qui nello stesso oggetto,
+    // così lista e sommario partono da un'unica descrizione del filtro.
+    return toMovimentiFilter({ ...this.filtri(), search: this.searchControl.value });
+  }
+
+  // ── Pannello filtri ────────────────────────────────────────────────────────
+
+  apriFiltri(): void {
+    this.panelAperto.set(true);
+  }
+
+  chiudiFiltri(): void {
+    this.panelAperto.set(false);
+  }
+
+  onFiltriApplicati(evento: FiltriApplicati): void {
+    this.filtri.set(evento.filtri);
+    this.etichette.set(evento.etichette);
+    this.panelAperto.set(false);
+    this.currentPage = 0;
+    this.loadData();
+  }
+
+  rimuoviFiltro(chip: FiltroChip): void {
+    this.filtri.update(f => rimuoviChip(f, chip));
+    this.currentPage = 0;
+    this.loadData();
   }
 
   resetFilters(): void {
-    this.searchControl.setValue('');
-    this.tipoControl.setValue('');
-    this.buControl.setValue(null);
-    this.statoControl.setValue('');
-    this.fromControl.setValue(null);
-    this.toControl.setValue(null);
+    this.searchControl.setValue('', { emitEvent: false });
+    this.filtri.set(filtriVuoti());
+    this.etichette.set({});
     this.currentPage = 0;
     this.loadData();
   }
@@ -309,7 +335,4 @@ export class MovimentiListComponent implements OnInit, OnDestroy {
     return this.buMap().get(buId)?.colore ?? '#6B7280';
   }
 
-  private toIso(d: Date): string {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
 }

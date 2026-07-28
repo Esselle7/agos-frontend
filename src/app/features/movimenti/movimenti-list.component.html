@@ -1,4 +1,4 @@
-<div class="mov-list">
+<div class="mov-list" [class.mov-list--filtri-aperti]="panelAperto()">
 
   <!-- Header -->
   <div class="mov-list__header">
@@ -19,56 +19,37 @@
     </div>
   </div>
 
-  <!-- Filters -->
+  <!-- Filters: ricerca sempre visibile + tutto il resto nel pannello laterale -->
   <div class="mov-list__filters card">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mov-list__search">
       <mat-label>Cerca descrizione</mat-label>
       <input matInput [formControl]="searchControl" placeholder="es. cena matrimonio...">
       <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Tipo</mat-label>
-      <mat-select [formControl]="tipoControl">
-        <mat-option value="">Tutti</mat-option>
-        <mat-option value="ENTRATA">Entrate</mat-option>
-        <mat-option value="USCITA">Uscite</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Stato</mat-label>
-      <mat-select [formControl]="statoControl">
-        <mat-option value="">Tutti</mat-option>
-        <mat-option value="REGISTRATO">Registrato</mat-option>
-        <mat-option value="DA_LIQUIDARE">Da liquidare</mat-option>
-        <mat-option value="ANNULLATO">Annullato</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Da data</mat-label>
-      <input matInput [matDatepicker]="pickerFrom" [formControl]="fromControl">
-      <mat-datepicker-toggle matSuffix [for]="pickerFrom"></mat-datepicker-toggle>
-      <mat-datepicker #pickerFrom></mat-datepicker>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>A data</mat-label>
-      <input matInput [matDatepicker]="pickerTo" [formControl]="toControl">
-      <mat-datepicker-toggle matSuffix [for]="pickerTo"></mat-datepicker-toggle>
-      <mat-datepicker #pickerTo></mat-datepicker>
-    </mat-form-field>
-
-    <div class="mov-list__filter-btns">
-      <button mat-stroked-button (click)="resetFilters()">
-        <mat-icon>clear</mat-icon> Reset
-      </button>
-      <button mat-flat-button color="primary" (click)="loadData()">
-        <mat-icon>filter_list</mat-icon> Filtra
-      </button>
-    </div>
+    <button mat-stroked-button type="button" class="mov-list__filter-trigger"
+            [class.is-on]="nFiltriAttivi() > 0" (click)="apriFiltri()">
+      <mat-icon>tune</mat-icon>
+      Filtri
+      @if (nFiltriAttivi() > 0) {
+        <span class="mov-list__filter-badge">{{ nFiltriAttivi() }}</span>
+      }
+    </button>
   </div>
+
+  <!-- Chip dei filtri attivi: con il pannello chiuso resta visibile cosa stai guardando -->
+  @if (chips().length > 0) {
+    <div class="mov-chips">
+      @for (chip of chips(); track chip.dim + ':' + chip.value) {
+        <button type="button" class="mov-chips__item" (click)="rimuoviFiltro(chip)"
+                [attr.aria-label]="'Rimuovi filtro ' + chip.label">
+          <span class="mov-chips__label">{{ chip.label }}</span>
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+      <button type="button" class="mov-chips__clear" (click)="resetFilters()">Azzera tutto</button>
+    </div>
+  }
 
   <!-- Summary cards -->
   @if (sommario(); as s) {
@@ -318,4 +299,12 @@
       </mat-paginator>
     }
   </div>
+
+  @if (panelAperto()) {
+    <app-movimenti-filtri-panel
+      [filtri]="filtri()"
+      (applica)="onFiltriApplicati($event)"
+      (chiudi)="chiudiFiltri()">
+    </app-movimenti-filtri-panel>
+  }
 </div>
