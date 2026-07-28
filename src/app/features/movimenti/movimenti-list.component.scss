@@ -3,6 +3,16 @@
   flex-direction: column;
   gap: 24px;
   padding: 24px;
+  transition: padding-right var(--t-base) var(--ease);
+
+  // Pannello filtri aperto: il contenuto si stringe invece di finire sotto al drawer.
+  // È il motivo per cui il pannello è laterale e non un modale — se poi copre la tabella
+  // tanto valeva usare un dialog. Sotto i 768px il drawer va a tutta larghezza: niente da stringere.
+  &--filtri-aperti {
+    @media (min-width: 769px) {
+      padding-right: calc(420px + 24px);
+    }
+  }
 
   &__header {
     display: flex;
@@ -41,23 +51,40 @@
 
   &__filters {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     flex-wrap: wrap;
     gap: 12px;
     padding: 16px;
+  }
 
-    mat-form-field {
-      min-width: 160px;
-      flex: 1;
+  &__search {
+    flex: 1;
+    min-width: 220px;
+  }
+
+  &__filter-trigger {
+    flex-shrink: 0;
+    // Attivo = c'è un filtro in corso. Il colore qui è stato, non decorazione.
+    &.is-on {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--tint-primary);
     }
   }
 
-  &__filter-btns {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-left: auto;
-    padding-top: 4px;
+  &__filter-badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--on-accent);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 
   &__table-wrapper {
@@ -318,4 +345,71 @@
     color: var(--danger);
     background: var(--tint-danger, rgba(220,38,38,.12));
   }
+}
+
+// ── Chip dei filtri attivi ───────────────────────────────────────────────────
+// Vivono sopra la tabella e non dentro il pannello: a pannello chiuso devi comunque
+// sapere che stai guardando un sottoinsieme, altrimenti leggi totali parziali credendoli interi.
+.mov-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 4px;
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 5px 6px 5px 11px;
+    border: 1px solid var(--primary);
+    border-radius: 999px;
+    background: var(--tint-primary);
+    color: var(--primary);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease);
+
+    &:hover { background: var(--tint-primary-hover); }
+    &:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+    mat-icon {
+      font-size: 15px;
+      width: 15px;
+      height: 15px;
+      opacity: 0.7;
+    }
+    &:hover mat-icon { opacity: 1; }
+  }
+
+  &__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 30ch;
+  }
+
+  &__clear {
+    margin-left: 4px;
+    padding: 5px 8px;
+    border: none;
+    background: none;
+    color: var(--text-sub);
+    font: inherit;
+    font-size: 0.8125rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+
+    &:hover { color: var(--text-main); }
+    &:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; border-radius: var(--radius-sm); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mov-chips__item,
+  .mov-list { transition: none; }
 }

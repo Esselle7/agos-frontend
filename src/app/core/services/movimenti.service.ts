@@ -32,16 +32,30 @@ import { PagedResponse, MovimentoDTOShared } from '../models/shared.models';
 import { API_PATHS } from '../constants/api-paths';
 import { environment } from '../../../environments/environment';
 
+/** A quale delle tre date del modello si applica il range from/to. */
+export type DateField = 'MOVIMENTO' | 'FINANZIARIA' | 'LIQUIDITA';
+
+/**
+ * Filtri della lista movimenti (docs/specs/movimenti-filtri-avanzati.md).
+ * Ogni dimensione è un array: i valori vanno in OR fra loro, le dimensioni in AND.
+ * `contoId: 0` è la sentinella per «senza banca» (conto_bancario_id IS NULL).
+ */
 export interface MovimentiFilter {
   from?: string;
   to?: string;
-  tipo?: 'ENTRATA' | 'USCITA';
-  buId?: number;
-  categoriaId?: number;
-  metodoPagamentoId?: number;
-  stato?: string;
-  fornitoreId?: string;
-  eventoId?: string;
+  dateField?: DateField;
+  tipo?: string[];
+  stato?: string[];
+  fonte?: string[];
+  contoId?: number[];
+  cogeId?: number[];
+  buId?: number[];
+  categoriaId?: number[];
+  metodoPagamentoId?: number[];
+  fornitoreId?: string[];
+  eventoId?: string[];
+  importoMin?: number | null;
+  importoMax?: number | null;
   search?: string;
   page?: number;
   size?: number;
@@ -52,18 +66,45 @@ export interface MovimentiFilter {
 export class MovimentiService {
   private readonly http = inject(HttpClient);
 
-  getList(filter: MovimentiFilter = {}): Observable<PagedResponse<MovimentoDTO>> {
+  /**
+   * Costruisce la query string dei filtri. Unica fonte di verità condivisa da lista e sommario:
+   * i due endpoint devono vedere gli stessi criteri, e duplicare la costruzione qui li farebbe
+   * divergere esattamente come divergevano le firme lato server.
+   * Le dimensioni multi-valore diventano parametri ripetuti (?stato=A&stato=B).
+   */
+  private buildFilterParams(filter: MovimentiFilter): HttpParams {
     let params = new HttpParams();
+
+    const appendAll = (key: string, values?: readonly (string | number)[]) => {
+      for (const v of values ?? []) {
+        if (v !== null && v !== undefined) params = params.append(key, v);
+      }
+    };
+
+    appendAll('tipo', filter.tipo);
+    appendAll('stato', filter.stato);
+    appendAll('fonte', filter.fonte);
+    appendAll('contoId', filter.contoId);
+    appendAll('cogeId', filter.cogeId);
+    appendAll('buId', filter.buId);
+    appendAll('categoriaId', filter.categoriaId);
+    appendAll('metodoPagamentoId', filter.metodoPagamentoId);
+    appendAll('fornitoreId', filter.fornitoreId);
+    appendAll('eventoId', filter.eventoId);
+
+    if (filter.importoMin != null) params = params.set('importoMin', filter.importoMin);
+    if (filter.importoMax != null) params = params.set('importoMax', filter.importoMax);
+    // dateField si manda solo se diverso dal default: query più corta e leggibile in rete.
+    if (filter.dateField && filter.dateField !== 'MOVIMENTO') params = params.set('dateField', filter.dateField);
     if (filter.from != null) params = params.set('from', filter.from);
     if (filter.to != null) params = params.set('to', filter.to);
-    if (filter.tipo != null) params = params.set('tipo', filter.tipo);
-    if (filter.buId != null) params = params.set('buId', filter.buId);
-    if (filter.categoriaId != null) params = params.set('categoriaId', filter.categoriaId);
-    if (filter.metodoPagamentoId != null) params = params.set('metodoPagamentoId', filter.metodoPagamentoId);
-    if (filter.stato != null) params = params.set('stato', filter.stato);
-    if (filter.fornitoreId != null) params = params.set('fornitoreId', filter.fornitoreId);
-    if (filter.eventoId != null) params = params.set('eventoId', filter.eventoId);
-    if (filter.search != null) params = params.set('search', filter.search);
+    if (filter.search) params = params.set('search', filter.search);
+
+    return params;
+  }
+
+  getList(filter: MovimentiFilter = {}): Observable<PagedResponse<MovimentoDTO>> {
+    let params = this.buildFilterParams(filter);
     if (filter.page != null) params = params.set('page', filter.page);
     if (filter.size != null) params = params.set('size', filter.size);
     if (filter.sort != null) params = params.set('sort', filter.sort);
@@ -74,20 +115,9 @@ export class MovimentiService {
   }
 
   getSommario(filter: Omit<MovimentiFilter, 'page' | 'size' | 'sort'> = {}): Observable<MovimentiSommarioDTO> {
-    let params = new HttpParams();
-    if (filter.from != null) params = params.set('from', filter.from);
-    if (filter.to != null) params = params.set('to', filter.to);
-    if (filter.tipo != null) params = params.set('tipo', filter.tipo);
-    if (filter.buId != null) params = params.set('buId', filter.buId);
-    if (filter.categoriaId != null) params = params.set('categoriaId', filter.categoriaId);
-    if (filter.metodoPagamentoId != null) params = params.set('metodoPagamentoId', filter.metodoPagamentoId);
-    if (filter.stato != null) params = params.set('stato', filter.stato);
-    if (filter.fornitoreId != null) params = params.set('fornitoreId', filter.fornitoreId);
-    if (filter.eventoId != null) params = params.set('eventoId', filter.eventoId);
-    if (filter.search != null) params = params.set('search', filter.search);
     return this.http.get<MovimentiSommarioDTO>(
       environment.apiBaseUrl + API_PATHS.MOVIMENTI.SOMMARIO,
-      { params }
+      { params: this.buildFilterParams(filter) }
     );
   }
 
