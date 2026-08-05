@@ -414,8 +414,11 @@ export interface RicorrenteParcheggiataDTO {
 }
 
 export interface RisolviRicorrenteRequest {
-  azione: 'CONFERMA' | 'IGNORA';
+  azione: 'COLLEGA' | 'CONFERMA' | 'IGNORA';
   cogeId: number | null;   // obbligatorio su CONFERMA di una USCITA; ignorato su ENTRATA
+  /** Obbligatori su COLLEGA: la rata del piano a cui agganciare l'addebito. */
+  pianoId?: string | null;
+  rataId?: string | null;
   nota: string | null;
 }
 

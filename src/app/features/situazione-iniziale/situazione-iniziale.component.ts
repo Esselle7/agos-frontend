@@ -14,10 +14,19 @@ import { PartiteAperturaComponent } from './partite-apertura.component';
 type Sezione = 'liquidita' | 'cespiti' | 'crediti' | 'debiti' | 'finanziamenti' | 'rimanenze';
 interface SezioneDef { id: Sezione; label: string; icon: string; }
 
-// Data di apertura del gestionale. Non è usata in alcun calcolo (il saldo è sempre
-// saldo_iniziale + somma movimenti, senza filtro data): è solo un'etichetta, quindi è fissa
-// e non si mostra né si edita a frontend.
-const DATA_APERTURA = '2025-12-31';
+/**
+ * Data di apertura del gestionale: la scegli tu qui, una volta sola, al go-live.
+ *
+ * Sui SALDI è solo un'etichetta (il saldo è sempre saldo_iniziale + somma movimenti, senza filtro
+ * data). Sulle PARTITE di apertura invece è la competenza economica dei movimenti creati, quindi
+ * decide in che esercizio finiscono: per questo dev'essere UNA sola, condivisa dalle due sezioni.
+ * Se saldi e partite partissero da due date diverse, la vista finanziaria e quella economica
+ * partirebbero da due istanti diversi e non quadrerebbero mai.
+ */
+function oggiIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 interface SaldoRow {
   id: number;
@@ -38,9 +47,12 @@ interface CespiteForm {
 }
 
 /**
- * Apertura del gestionale: i due dati che vengono da prima del 2026 e servono per partire giusti.
- * 1) Saldi dei conti al 31/12/2025 (liquidità reale di partenza).
- * 2) Libro cespiti: i beni durevoli ancora in ammortamento, così il P&L 2026 ha gli ammortamenti.
+ * Apertura del gestionale: i dati che vengono da PRIMA della data di apertura e servono per
+ * partire giusti.
+ * 1) Saldi dei conti a quella data (liquidità reale di partenza).
+ * 2) Libro cespiti: i beni durevoli ancora in ammortamento, così il P&L ha gli ammortamenti.
+ * 3) Partite aperte: crediti e debiti pregressi (→ PartiteAperturaComponent, che li registra con
+ *    competenza nell'anno precedente per non gonfiare il conto economico in corso).
  */
 @Component({
   selector: 'app-situazione-iniziale',
@@ -52,8 +64,17 @@ interface CespiteForm {
       <header class="si__head">
         <span class="si__eyebrow">Apertura</span>
         <h1>Situazione iniziale</h1>
-        <p class="si__sub">La fotografia al 31/12/2025 da cui parte il gestionale. Ogni sezione è facoltativa:
+        <p class="si__sub">La fotografia al {{ dataAperturaLabel() }} da cui parte il gestionale. Ogni sezione è facoltativa:
           compila quello che hai, quando ce l'hai. Il dettaglio dei movimenti passati non serve.</p>
+        <label class="si__data">
+          <span>Data di apertura</span>
+          <input type="date" [max]="oggi" [ngModel]="dataApertura()" (ngModelChange)="dataApertura.set($event)" />
+          @if (!dataAperturaValida()) {
+            <em class="si__data-err">Non può essere una data futura.</em>
+          } @else {
+            <em class="si__data-hint">Vale sia per i saldi sia per crediti e debiti: partono dallo stesso giorno.</em>
+          }
+        </label>
       </header>
 
       @if (loading()) {
@@ -74,8 +95,8 @@ interface CespiteForm {
         @case ('liquidita') {
       <section class="card">
         <div class="card__head">
-          <div class="card__title"><mat-icon>account_balance</mat-icon><h2>Saldi al 31/12/2025</h2></div>
-          <span class="card__hint">Lo leggi dal saldo iniziale del primo estratto conto di gennaio; per la cassa, il contante a fine anno.</span>
+          <div class="card__title"><mat-icon>account_balance</mat-icon><h2>Saldi al {{ dataAperturaLabel() }}</h2></div>
+          <span class="card__hint">Il <strong>saldo contabile</strong> dell'estratto conto a quella data; per la cassa, il contante contato.</span>
         </div>
         <div class="rows">
           @for (r of saldi(); track r.id) {
@@ -85,10 +106,10 @@ interface CespiteForm {
                 {{ r.nome }}
               </div>
               <label class="field field--money">
-                <span>Saldo al 31/12/2025</span>
+                <span>Saldo al {{ dataAperturaLabel() }}</span>
                 <div class="money"><input type="number" step="0.01" [(ngModel)]="r.saldoIniziale" (ngModelChange)="r.done=false" /><i>€</i></div>
               </label>
-              <button class="btn-save" [disabled]="r.saving" (click)="salvaSaldo(r)">
+              <button class="btn-save" [disabled]="r.saving || !dataAperturaValida()" (click)="salvaSaldo(r)">
                 @if (r.saving) { <mat-spinner diameter="16"></mat-spinner> }
                 @else if (r.done) { <mat-icon>check</mat-icon> Salvato }
                 @else { <mat-icon>save</mat-icon> Salva }
@@ -192,23 +213,24 @@ interface CespiteForm {
         @case ('crediti') {
           <section class="card">
             <div class="card__head"><div class="card__title"><mat-icon>call_received</mat-icon><h2>Crediti da incassare</h2></div></div>
-            <app-partite-apertura tipo="ENTRATA" />
+            <app-partite-apertura tipo="ENTRATA" [dataApertura]="dataApertura()" [dataValida]="dataAperturaValida()" />
           </section>
         }
 
         @case ('debiti') {
           <section class="card">
             <div class="card__head"><div class="card__title"><mat-icon>call_made</mat-icon><h2>Debiti da pagare</h2></div></div>
-            <app-partite-apertura tipo="USCITA" />
+            <app-partite-apertura tipo="USCITA" [dataApertura]="dataApertura()" [dataValida]="dataAperturaValida()" />
           </section>
         }
 
         @case ('finanziamenti') {
           <section class="card guide">
             <div class="card__head"><div class="card__title"><mat-icon>account_balance_wallet</mat-icon><h2>Finanziamenti e mutui</h2></div></div>
-            <p class="guide__txt">Mutui, leasing e finanziamenti pre-2026 non si inseriscono qui: si gestiscono come
-              <strong>spese ricorrenti</strong>, partendo dal <strong>debito residuo all'1/1/2026</strong>. Nel conto economico
-              entra solo la quota interessi delle rate 2026; il capitale è debito, non costo.</p>
+            <p class="guide__txt">Mutui, leasing e finanziamenti in corso non si inseriscono qui: si gestiscono come
+              <strong>spese ricorrenti</strong>, partendo dal <strong>debito residuo al {{ dataAperturaLabel() }}</strong>. Nel conto
+              economico entra solo la quota interessi delle rate; il capitale è debito, non costo.
+              La <strong>prima rata</strong> va datata dopo la data di apertura, altrimenti lo scheduler rigenera rate già pagate.</p>
             <a class="guide__cta" routerLink="/spese-ricorrenti"><mat-icon>arrow_forward</mat-icon> Vai a Spese ricorrenti</a>
           </section>
         }
@@ -216,11 +238,11 @@ interface CespiteForm {
         @case ('rimanenze') {
           <section class="card guide">
             <div class="card__head"><div class="card__title"><mat-icon>warehouse</mat-icon><h2>Rimanenze di magazzino</h2></div></div>
-            <p class="guide__txt">Il valore delle scorte al 31/12/2025 (cantina, spaccio, food) è una posta dello stato
+            <p class="guide__txt">Il valore delle scorte alla data di apertura (cantina, spaccio, food) è una posta dello stato
               patrimoniale che il gestionale <strong>non traccia</strong>: serve per il bilancio della commercialista, non per i
               KPI di cassa e margine di questo strumento.</p>
-            <p class="guide__txt">Chiedi alla commercialista il <strong>valore delle rimanenze al 31/12/2025</strong> e tienilo
-              come riferimento; non va inserito qui perché non alimenta nessun calcolo del gestionale.</p>
+            <p class="guide__txt">Chiedi alla commercialista il <strong>valore delle rimanenze al {{ dataAperturaLabel() }}</strong> e
+              tienilo come riferimento; non va inserito qui perché non alimenta nessun calcolo del gestionale.</p>
           </section>
         }
 
@@ -247,6 +269,18 @@ export class SituazioneInizialeComponent {
     { id: 'rimanenze',     label: 'Rimanenze',           icon: 'warehouse' },
   ];
   readonly sezione = signal<Sezione>('liquidita');
+
+  /** Data di apertura condivisa da saldi e partite. Default: oggi. */
+  readonly oggi = oggiIso();
+  readonly dataApertura = signal(this.oggi);
+  readonly dataAperturaValida = computed(() => {
+    const d = this.dataApertura();
+    return !!d && d <= this.oggi;          // niente date future: non esiste un saldo di domani
+  });
+  readonly dataAperturaLabel = computed(() => {
+    const d = this.dataApertura();
+    return d ? new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d)) : '—';
+  });
 
   readonly loading = signal(true);
   readonly saldi = signal<SaldoRow[]>([]);
@@ -298,8 +332,9 @@ export class SituazioneInizialeComponent {
   }
 
   salvaSaldo(r: SaldoRow): void {
+    if (!this.dataAperturaValida()) return;
     r.saving = true; this.saldi.update(a => [...a]);
-    this.contiSvc.updateSaldoIniziale(r.id, Number(r.saldoIniziale) || 0, DATA_APERTURA).subscribe({
+    this.contiSvc.updateSaldoIniziale(r.id, Number(r.saldoIniziale) || 0, this.dataApertura()).subscribe({
       next: () => { r.saving = false; r.done = true; this.saldi.update(a => [...a]);
         this.snack.open(`Saldo di ${r.nome} salvato`, undefined, { duration: 2000 }); },
       error: () => { r.saving = false; this.saldi.update(a => [...a]);

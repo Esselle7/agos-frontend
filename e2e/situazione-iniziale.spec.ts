@@ -39,6 +39,7 @@ async function loginAs(page: Page): Promise<void> {
 }
 
 const CESPITE_DESC = 'ZZ Forno E2E';
+const CREDITO_DESC = 'ZZ Credito apertura E2E';
 
 test.describe('Situazione iniziale', () => {
   test.beforeEach(async ({ page }) => {
@@ -120,6 +121,75 @@ test.describe('Situazione iniziale', () => {
 
     await cesp.locator('.ico--danger').click();
     await expect(page.locator('.cesp', { hasText: 'ZZ Cespite con cat' })).toHaveCount(0, { timeout: 8000 });
+  });
+
+  // La data di apertura è la competenza economica delle partite: se accetta una data futura,
+  // crediti e debiti nascono in un esercizio che non esiste ancora. Questa è la guardia.
+  test('la data di apertura parte da oggi e rifiuta una data futura', async ({ page }) => {
+    const dataInput = page.locator('.si__data input[type="date"]');
+    const oggi = new Date();
+    const oggiIso = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}-${String(oggi.getDate()).padStart(2, '0')}`;
+
+    await expect(dataInput).toHaveValue(oggiIso);
+    await expect(page.locator('.si__data-hint')).toBeVisible();
+    // il salvataggio dei saldi è abilitato con la data di default
+    await expect(page.locator('.row .btn-save').first()).toBeEnabled();
+
+    // data futura → errore visibile e salvataggio bloccato
+    await dataInput.fill('2099-01-01');
+    await expect(page.locator('.si__data-err')).toBeVisible();
+    await expect(page.locator('.row .btn-save').first()).toBeDisabled();
+
+    // e blocca anche l'aggiunta di una partita di apertura
+    await page.locator('.si__nav-item', { hasText: 'Crediti da incassare' }).click();
+    await page.getByRole('button', { name: 'Aggiungi credito' }).click();
+    await page.locator('.cform input[type="text"]').first().fill('ZZ credito E2E');
+    await page.locator('.cform input[type="number"]').first().fill('100');
+    await expect(page.getByRole('button', { name: 'Aggiungi', exact: true })).toBeDisabled();
+  });
+
+  // Invariante documentata nel manuale: le partite di apertura NON gonfiano il conto economico
+  // dell'esercizio in corso. Il P&L aggrega per MESE, quindi una competenza dentro il mese di
+  // apertura ci finirebbe dentro: la competenza deve stare nell'anno precedente.
+  test("un credito di apertura non entra nel P&L dell'esercizio in corso", async ({ page, request }) => {
+    const token = mintAdminJwt();
+    const auth = { Authorization: `Bearer ${token}` };
+    const anno = new Date().getFullYear();
+    const plRicavi = async () => {
+      const r = await request.get(`http://localhost:8080/api/reporting/pl/tutte-bu?from=${anno}-01-01&to=${anno}-12-31`, { headers: auth });
+      const d = await r.json();
+      return (d.businessUnits as Array<{ ricavi: number }>).reduce((s, b) => s + b.ricavi, 0);
+    };
+
+    const prima = await plRicavi();
+
+    await page.locator('.si__nav-item', { hasText: 'Crediti da incassare' }).click();
+    await page.getByRole('button', { name: 'Aggiungi credito' }).click();
+    const form = page.locator('.cform');
+    await form.locator('input[type="text"]').first().fill(CREDITO_DESC);
+    await form.locator('input[type="number"]').first().fill('1234');
+    // coge-picker: il trigger apre un dialog (foglie + Conferma)
+    await form.locator('button.cpk').click();
+    await page.locator('.cp__leaf').first().click();
+    await page.getByRole('button', { name: 'Conferma' }).click();
+    await page.getByRole('button', { name: 'Aggiungi', exact: true }).click();
+    await expect(page.locator('.row', { hasText: CREDITO_DESC })).toBeVisible({ timeout: 8000 });
+
+    // (1) guardia DETERMINISTICA: la competenza dev'essere in un anno PRECEDENTE all'apertura.
+    //     È il meccanismo che rende vera l'invariante; non dipende dal refresh delle MV.
+    const lista = await (await request.get('http://localhost:8080/api/movimenti/partite-apertura?tipo=ENTRATA', { headers: auth })).json();
+    const creato = (lista as Array<{ descrizione: string; dataCompetenza: string }>).find(m => m.descrizione === CREDITO_DESC);
+    expect(creato, "il credito di apertura deve essere stato creato").toBeTruthy();
+    expect(Number(creato!.dataCompetenza.slice(0, 4))).toBeLessThan(anno);
+
+    // (2) controllo dell'ESITO: il P&L dell'anno in corso non si muove.
+    //     Le MV si rinfrescano dopo il commit in modo asincrono → forzo il refresh, altrimenti
+    //     leggerei un valore vecchio e il test passerebbe anche col bug (successo falso).
+    execSync(`docker exec -e PGPASSWORD=agos agos-postgres psql -U agos -d agosdb -c "SELECT fn_refresh_all_mv()"`, { stdio: 'ignore' });
+    expect(await plRicavi()).toBeCloseTo(prima, 2);
+
+    await page.locator('.row', { hasText: CREDITO_DESC }).locator('.ico--danger').click();
+    await expect(page.locator('.row', { hasText: CREDITO_DESC })).toHaveCount(0, { timeout: 8000 });
   });
 
   test('naviga le sezioni e apre il form crediti da incassare', async ({ page }) => {

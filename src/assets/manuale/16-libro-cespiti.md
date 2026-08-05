@@ -8,8 +8,8 @@ Registrare i **beni durevoli acquistati durante l'anno** (forno, lavastoviglie, 
 impianti) e impostarne l'**ammortamento**. È il gemello "operativo" del libro cespiti che trovi
 nella [Situazione iniziale](12-situazione-iniziale.md#192-cespiti--il-libro-dei-beni-durevoli):
 
-- **Situazione iniziale → Cespiti** = i beni **già posseduti** prima del gestionale (fotografia al
-  31/12/2025).
+- **Situazione iniziale → Cespiti** = i beni **già posseduti** prima del gestionale (la fotografia
+  alla data di apertura).
 - **Libro cespiti** (questa pagina) = i beni che **compri adesso**, con tanto di uscita di cassa.
 
 > **Perché un cespite non è un costo.** Quando compri un bene da €10.000 i soldi **escono subito**

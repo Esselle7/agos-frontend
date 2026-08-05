@@ -205,6 +205,12 @@
               <!-- Stato badge -->
               <td>
                 <span class="badge" [class]="statoClass(rata.stato)">{{ rata.stato }}</span>
+                @if (inAttesaDiAddebito(rata)) {
+                  <span class="badge badge--red srd-badge--attesa"
+                        matTooltip="Scaduta ma non ancora addebitata in banca. Diventa un movimento quando la confermi: dallo smistamento import (Collega) o col bottone Paga.">
+                    in attesa di addebito
+                  </span>
+                }
                 @if (rata.movimentoId) {
                   <mat-icon class="icon-xs srd-icon--link" matTooltip="Movimento generato">link</mat-icon>
                 }

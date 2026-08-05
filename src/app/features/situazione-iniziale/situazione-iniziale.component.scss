@@ -9,6 +9,20 @@
 .si__sub { margin: 0; color: var(--text-sub); font-size: 0.92rem; max-width: 72ch; line-height: 1.5; }
 .si__center { display: flex; justify-content: center; padding: 80px 0; }
 
+/* data di apertura: un solo valore, condiviso da saldi e partite */
+.si__data {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px;
+  > span { font-size: 0.82rem; font-weight: 650; color: var(--text-main); }
+  input {
+    padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--text-main); font: inherit; font-size: 0.88rem;
+    &:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  }
+  em { font-style: normal; font-size: 0.8rem; }
+}
+.si__data-hint { color: var(--text-sub); }
+.si__data-err  { color: var(--danger); font-weight: 600; }
+
 /* hub: nav laterale + contenuto */
 .si__body { display: grid; grid-template-columns: 220px 1fr; gap: 24px; align-items: start; }
 .si__nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 16px; }

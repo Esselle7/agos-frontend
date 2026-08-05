@@ -96,8 +96,29 @@ stesso modo.
 
 ### Ricorrenti
 
-Righe che assomigliano a **rate di un piano di spesa ricorrente**. Qui puoi **collegare la riga al
-piano ricorrente** giusto, così la rata risulta pagata senza doppio inserimento.
+Righe che assomigliano a **rate di un piano di spesa ricorrente** (mutui, finanziamenti, leasing,
+canoni, assicurazioni, bolli). L'import le riconosce **dalla descrizione** e le mette da parte:
+**non diventano movimenti da sole**, perché il modulo Spese ricorrenti è la fonte di verità.
+
+Tre azioni, in ordine di preferenza:
+
+- **Collega** *(la via giusta quando il piano esiste)* — scegli **piano** e **rata**. Due casi, e il
+  gestionale li distingue da solo:
+  - la rata è **ancora da pagare** → la paga usando la **data reale dell'addebito in banca**, non la
+    data di scadenza teorica;
+  - la rata **risulta già pagata** (il piano l'aveva già generata alla scadenza) → **non crea niente**,
+    la riga si aggancia al movimento che c'è già.
+
+  In entrambi i casi resta **un solo movimento** per quell'addebito. L'etichetta di ogni rata nella
+  tendina ti dice in anticipo quale dei due casi è.
+- **Conferma** — crea un movimento **isolato**, scegliendo il conto CoGe. Serve quando **non c'è un
+  piano** a cui agganciare la riga: tipicamente per una rata pagata prima che il piano fosse creato.
+  Attenzione: se il piano esiste, questa strada **duplica** l'uscita — usa Collega.
+- **Ignora** — la riga non va contabilizzata.
+
+> **Perché serve.** Il piano genera i movimenti delle rate **alla data di scadenza**, che la banca
+> abbia addebitato o no. L'estratto conto è l'unico che sa la verità: *Collega* è il punto in cui i
+> due si incontrano.
 
 ### Eventi
 

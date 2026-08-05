@@ -228,6 +228,19 @@ export class SpeseRicorrentiDetailComponent implements OnInit {
     }[stato] ?? '';
   }
 
+  /**
+   * Rata scaduta e ancora non confermata dalla banca. Dal 2026-08-05 nessun job la "paga" da solo
+   * alla scadenza: resta PENDING finché non arriva l'addebito (COLLEGA dall'import) o non la paghi
+   * a mano. Senza questo segnale il cambio di comportamento sarebbe invisibile all'utente.
+   */
+  inAttesaDiAddebito(rata: InstallmentDTO): boolean {
+    return rata.stato === 'PENDING' && rata.dataScadenza < this.oggiIso;
+  }
+  private readonly oggiIso = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+
   planStatoClass(stato: string): string {
     return { ATTIVO: 'badge--green', COMPLETATO: 'badge--blue', ANNULLATO: 'badge--red' }[stato] ?? '';
   }
