@@ -12,6 +12,16 @@
     </button>
   </div>
 
+  <!-- Il gestionale è ripartito da zero: prima dell'apertura non ci sono dati, non è un errore -->
+  @if (periodoPrimaDellApertura()) {
+    <agos-help-note tono="warn" titolo="Perché i mesi precedenti sono vuoti?">
+      Il gestionale parte dal <strong>{{ dataAperturaLabel() }}</strong>: i movimenti precedenti non
+      sono stati caricati, quindi i mesi prima di quella data risultano a zero. Non è un errore di
+      calcolo — semplicemente quel periodo non è coperto. Per un confronto sensato scegli un
+      intervallo che parte dalla data di apertura.
+    </agos-help-note>
+  }
+
   <!-- LOADING -->
   @if (loading()) {
     <div class="plc-skeleton-grid">

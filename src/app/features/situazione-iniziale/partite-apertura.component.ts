@@ -8,8 +8,6 @@ import { MovimentoDTOShared } from '../../core/models/shared.models';
 import { PianoContiCogeDTO } from '../../core/models/anagrafica.models';
 import { CogePickerComponent } from '../../shared/components/coge-picker/coge-picker.component';
 
-const DATA_APERTURA = '2025-12-31';
-
 interface PartitaForm {
   descrizione: string;
   importo: number | null;
@@ -18,9 +16,18 @@ interface PartitaForm {
 }
 
 /**
- * Crediti da incassare (ENTRATA) o debiti da pagare (USCITA) aperti al 31/12/2025.
- * Sono movimenti DA_LIQUIDARE con competenza economica 2025: NON entrano nel P&L 2026 (competenza
- * pregressa) ma quando li incassi/paghi nel 2026 muovono la cassa e si liquidano normalmente.
+ * Crediti da incassare (ENTRATA) o debiti da pagare (USCITA) già aperti alla data di apertura.
+ * Sono movimenti DA_LIQUIDARE: quando li incassi/paghi muovono la cassa e si liquidano normalmente.
+ *
+ * **La competenza economica NON è la data di apertura, è il 31/12 dell'anno precedente.**
+ * Motivo misurato (2026-08-05): il conto economico aggrega per MESE
+ * (`mv_conto_economico_mensile`), quindi qualunque competenza dentro il mese di apertura finisce
+ * nel P&L di quel mese — un credito pregresso di 1.000 € comparirebbe come ricavo di agosto.
+ * Spostandola all'anno precedente le poste di apertura restano fuori dal conto economico
+ * dell'esercizio in corso, che è la promessa fatta all'utente nel manuale: *"non gonfiano il P&L"*.
+ * Non basta il giorno prima (04/08 finisce comunque in agosto): serve cambiare anno.
+ *
+ * La data di apertura arriva dal padre e serve a sapere QUALE anno è il pregresso.
  */
 @Component({
   selector: 'app-partite-apertura',
@@ -39,7 +46,7 @@ interface PartitaForm {
             <li class="row" [class.row--busy]="busyId() === m.id">
               <div class="amount" [class.is-in]="entrata" [class.is-out]="!entrata">{{ eur(m.importo) }}</div>
               <div class="meta">
-                <p class="desc">{{ m.descrizione || 'Senza descrizione' }} <span class="tag-2025">Apertura 2025</span></p>
+                <p class="desc">{{ m.descrizione || 'Senza descrizione' }} <span class="tag-2025">Apertura {{ annoApertura }}</span></p>
                 <span class="sub">{{ controparteLabel }} · scadenza {{ data(m.dataLiquidita) }}</span>
               </div>
               <button class="ico ico--danger" [disabled]="busyId() === m.id" (click)="elimina(m)" title="Rimuovi"><mat-icon>delete</mat-icon></button>
@@ -82,6 +89,10 @@ interface PartitaForm {
 })
 export class PartiteAperturaComponent implements OnInit {
   @Input({ required: true }) tipo!: 'ENTRATA' | 'USCITA';
+  /** Data di apertura scelta nel padre. NON è la competenza: da qui si ricava l'anno del pregresso. */
+  @Input({ required: true }) dataApertura!: string;
+  /** Falsa se la data scelta nel padre non è valida: blocca il salvataggio. */
+  @Input() dataValida = true;
 
   private readonly svc = inject(MovimentiService);
   private readonly snack = inject(MatSnackBar);
@@ -98,14 +109,25 @@ export class PartiteAperturaComponent implements OnInit {
   get controparteLabel(): string { return this.entrata ? 'Cliente' : 'Fornitore'; }
   get totaleLabel(): string { return this.entrata ? 'crediti da incassare' : 'debiti da pagare'; }
   get addLabel(): string { return this.entrata ? 'Aggiungi credito' : 'Aggiungi debito'; }
+  /** Anno del pregresso: quello PRIMA dell'apertura. È l'anno di competenza delle poste. */
+  get annoApertura(): number {
+    return (Number(this.dataApertura?.slice(0, 4)) || new Date().getFullYear()) - 1;
+  }
+  /** Competenza economica delle poste di apertura: 31/12 dell'anno precedente (vedi doc di classe). */
+  get dataPregressa(): string { return `${this.annoApertura}-12-31`; }
+  get dataAperturaLabel(): string {
+    return this.dataApertura
+      ? new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(this.dataApertura))
+      : '—';
+  }
   get intro(): string {
     return this.entrata
-      ? 'Soldi che i clienti ti devono al 31/12/2025 (eventi o fatture non ancora incassati). Quando li incassi nel 2026 muovono la cassa, ma non contano come ricavo 2026.'
-      : 'Fatture fornitori da pagare al 31/12/2025 (es. un saldo fornitore aperto). Quando le paghi nel 2026 escono dalla cassa, ma non contano come costo 2026.';
+      ? `Soldi che i clienti ti devono al ${this.dataAperturaLabel} (eventi o fatture non ancora incassati). Quando li incassi muovono la cassa, ma NON contano come ricavo dell'esercizio in corso: sono pregressi, registrati con competenza ${this.annoApertura}.`
+      : `Fatture fornitori da pagare al ${this.dataAperturaLabel} (es. un saldo fornitore aperto). Quando le paghi escono dalla cassa, ma NON contano come costo dell'esercizio in corso: sono pregresse, registrate con competenza ${this.annoApertura}.`;
   }
   get emptyHint(): string {
     return this.entrata ? 'Aggiungi i crediti aperti che ti ha indicato la commercialista.'
-                        : 'Aggiungi i debiti verso fornitori aperti a fine 2025.';
+                        : 'Aggiungi i debiti verso fornitori ancora aperti a quella data.';
   }
   get placeholder(): string {
     return this.entrata ? 'Es. Evento Rossi – saldo da incassare' : 'Es. Fornitore X – fatture da saldare';
@@ -122,14 +144,18 @@ export class PartiteAperturaComponent implements OnInit {
   }
 
   apri(): void {
-    this.form.set({ descrizione: '', importo: null, scadenza: '2026-03-31', contoCoge: null });
+    // Scadenza proposta: 3 mesi dopo l'apertura. È solo un default, si cambia a mano.
+    const d = new Date(this.dataApertura);
+    d.setMonth(d.getMonth() + 3);
+    const scadenza = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    this.form.set({ descrizione: '', importo: null, scadenza, contoCoge: null });
   }
   patch<K extends keyof PartitaForm>(k: K, v: PartitaForm[K]): void {
     this.form.update(f => f ? { ...f, [k]: v } : f);
   }
   valido(): boolean {
     const f = this.form();
-    return !!(f && f.descrizione.trim() && f.importo && f.importo > 0 && f.scadenza && f.contoCoge);
+    return !!(f && this.dataValida && f.descrizione.trim() && f.importo && f.importo > 0 && f.scadenza && f.contoCoge);
   }
 
   salva(): void {
@@ -138,7 +164,7 @@ export class PartiteAperturaComponent implements OnInit {
     this.saving.set(true);
     this.svc.create({
       tipo: this.tipo, importo: f.importo!, importoLordo: f.importo!, aliquotaIva: null,
-      dataMovimento: DATA_APERTURA, dataCompetenza: DATA_APERTURA, dataFinanziaria: null,
+      dataMovimento: this.dataPregressa, dataCompetenza: this.dataPregressa, dataFinanziaria: null,
       dataLiquidita: f.scadenza, contoBancarioId: null, metodoPagamentoId: null,
       businessUnitId: this.entrata ? 2 : 1, contoCoge: f.contoCoge!, categoriaId: null,
       fornitoreId: null, eventoId: null, tipoEventoMovimento: null,

@@ -152,6 +152,41 @@ export class KeywordPageComponent implements OnInit {
     });
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ⛔ TEMPORANEO — GO-LIVE 2026-08-05. DA CANCELLARE dopo il reset.
+  // Rimuovere: questo blocco + il blocco `.golive` in .html e .scss.
+  // Non tocca le keyword (firme, token, regole): archivia solo gli AVVISI di conflitto
+  // rimasti aperti, che dopo il rollback puntano a movimenti non più esistenti.
+  // Riusa l'endpoint per-conflitto già esistente: nessuna API nuova.
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly goliveBusy = signal(false);
+  readonly goliveEsito = signal<string | null>(null);
+
+  goliveSistemaConflitti(): void {
+    const aperti = this.conflitti();
+    if (!aperti.length) { this.goliveEsito.set('Nessun conflitto aperto: non c\'è niente da sistemare.'); return; }
+    if (!confirm(`Archiviare ${aperti.length} conflitti keyword aperti?\n\nLe keyword NON vengono toccate: si chiudono solo gli avvisi.`)) return;
+
+    this.goliveBusy.set(true);
+    this.goliveEsito.set(null);
+    let ok = 0; let ko = 0;
+    const next = (i: number): void => {
+      if (i >= aperti.length) {
+        this.goliveBusy.set(false);
+        this.goliveEsito.set(`Archiviati ${ok} conflitti${ko ? `, ${ko} falliti` : ''}.`);
+        this.carica();
+        return;
+      }
+      this.movimentiService.risolviKeywordConflitto(aperti[i].id, { azione: 'SCARTA', note: 'Go-live 2026-08-05' })
+        .subscribe({
+          next: () => { ok++; next(i + 1); },
+          error: () => { ko++; next(i + 1); },   // si prosegue: un fallimento non blocca gli altri
+        });
+    };
+    next(0);
+  }
+  // ═══════════════════ fine blocco temporaneo ═══════════════════
+
   risolvi(c: KeywordConflittoDTO, azione: 'TIENI_ESISTENTE' | 'USA_NUOVO' | 'SCARTA'): void {
     this.movimentiService.risolviKeywordConflitto(c.id, { azione, note: null }).subscribe({
       next: () => { this.conflitti.update(cs => cs.filter(x => x.id !== c.id)); this.carica(); this.snackBar.open('Conflitto risolto', 'OK', { duration: 2000 }); },

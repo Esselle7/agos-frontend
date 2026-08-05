@@ -19,6 +19,23 @@
     </div>
   </div>
 
+  <!-- ⛔ TEMPORANEO — GO-LIVE 2026-08-05. CANCELLARE questo blocco dopo il reset. -->
+  @if (authService.isAdmin()) {
+    <div class="golive">
+      <div class="golive__tag">⛔ STRUMENTO TEMPORANEO — GO-LIVE — DA RIMUOVERE</div>
+      <button type="button" class="golive__btn" [disabled]="goliveBusy()" (click)="goliveAnnullaMovimentiEvento()">
+        @if (goliveBusy()) { ⏳ IN CORSO… } @else { 🧨 ANNULLA TUTTI I MOVIMENTI DEGLI EVENTI }
+      </button>
+      <p class="golive__note">
+        Annulla i movimenti collegati a un evento (pagamenti <b>e</b> costi diretti), riconosciuti dal
+        collegamento all'evento e non dalla descrizione. Gli eventi restano consultabili con i loro
+        importi storici. Annullamento logico e tracciato: nessuna riga viene cancellata.
+      </p>
+      @if (goliveProgress()) { <p class="golive__esito">{{ goliveProgress() }}</p> }
+    </div>
+  }
+  <!-- ⛔ fine blocco temporaneo -->
+
   <!-- Filters: ricerca sempre visibile + tutto il resto nel pannello laterale -->
   <div class="mov-list__filters card">
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mov-list__search">

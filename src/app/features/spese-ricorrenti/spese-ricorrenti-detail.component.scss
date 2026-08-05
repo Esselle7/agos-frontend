@@ -257,6 +257,8 @@
 }
 
 .srd-icon--link { font-size: 14px; width: 14px; height: 14px; vertical-align: middle; color: var(--primary); margin-left: 4px; }
+/* rata scaduta e non ancora confermata dall'estratto conto */
+.srd-badge--attesa { margin-left: 6px; white-space: nowrap; }
 
 // ── Modal overlay
 .srd-overlay {

@@ -323,6 +323,22 @@
 .triage__ric-actions { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .4rem; }
 .triage__ric-plan { flex: 1 1 320px; min-width: 240px; }
 
+/* COLLEGA: scelta piano → rata. Riga a sé, sopra le azioni, perché è la via consigliata. */
+.triage__ric-collega {
+  display: flex; align-items: flex-end; gap: .6rem; flex-wrap: wrap;
+  margin-top: .5rem; padding: .6rem; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+
+  label { display: flex; flex-direction: column; gap: .2rem; flex: 1 1 260px; min-width: 200px; }
+  label > span { font-size: .74rem; font-weight: 650; color: var(--text-sub); }
+  select {
+    padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--text-main); font: inherit; font-size: .86rem;
+    &:disabled { opacity: .55; }
+  }
+}
+
 /* Matching differiti: confronto a due lati (movimento già a libro ↔ riga banca) */
 .triage__match { display: flex; align-items: stretch; gap: .75rem; flex-wrap: wrap; margin-bottom: .5rem; }
 .triage__match-side {

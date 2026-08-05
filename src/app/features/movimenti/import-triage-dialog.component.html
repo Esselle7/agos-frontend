@@ -254,7 +254,11 @@
         } @else {
           <p class="text-sub triage__hint">
             Rate di mutui/finanziamenti, leasing, canoni, assicurazioni già addebitate in banca ma non ancora a libro.
-            <strong>Conferma</strong> per creare il movimento contabile (scegli il conto CoGe della rata), oppure <strong>ignora</strong> la riga.
+            <strong>Collega</strong> se la rata esiste già in un piano ricorrente — è la via giusta, non duplica nulla:
+            se la rata è ancora da pagare la paga con la data reale dell'addebito, se il piano l'ha già generata
+            la riga ci si aggancia e basta.
+            <strong>Conferma</strong> solo se non c'è un piano a cui agganciarla (crea un movimento isolato, scegli il CoGe).
+            <strong>Ignora</strong> se non va contabilizzata.
           </p>
           @for (r of ricorrenti(); track r.id) {
             <div class="triage__ric">
@@ -266,6 +270,36 @@
                 <span class="triage__date">{{ r.dataMovimento }}</span>
               </div>
               <p class="triage__desc">{{ r.descrizione }}</p>
+
+              @if (r.tipo === 'USCITA') {
+                <div class="triage__ric-collega">
+                  <label>
+                    <span>Piano ricorrente</span>
+                    <select [value]="pianoSelRic()[r.id] ?? ''" (change)="setPianoRic(r.id, $any($event.target).value || null)">
+                      <option value="">— scegli il piano —</option>
+                      @for (p of piani(); track p.id) {
+                        <option [value]="p.id">{{ p.descrizione }} (€ {{ p.importoRata }})</option>
+                      }
+                    </select>
+                  </label>
+                  <label>
+                    <span>Rata</span>
+                    <select [value]="rataSelRic()[r.id] ?? ''" [disabled]="!pianoSelRic()[r.id]"
+                            (change)="setRataRic(r.id, $any($event.target).value || null)">
+                      <option value="">— scegli la rata —</option>
+                      @for (rt of rateSelezionabili(r.id); track rt.id) {
+                        <option [value]="rt.id">{{ etichettaRata(rt) }}</option>
+                      }
+                    </select>
+                  </label>
+                  <button mat-flat-button color="primary" [disabled]="saving() === r.id || !canCollegare(r)"
+                          (click)="collegaRicorrente(r)">
+                    @if (saving() === r.id) { <mat-spinner diameter="18"></mat-spinner> } @else { <mat-icon>link</mat-icon> }
+                    Collega
+                  </button>
+                </div>
+              }
+
               <div class="triage__ric-actions">
                 @if (r.tipo === 'ENTRATA') {
                   <span class="triage__ric-fixed"><mat-icon>lock</mat-icon> Finanziamenti ricevuti (90.01.001)</span>

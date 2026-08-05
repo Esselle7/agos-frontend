@@ -29,6 +29,21 @@
   @if (loading()) {
     <div class="kw__loading"><mat-spinner diameter="40"></mat-spinner></div>
   } @else {
+    <!-- ⛔ TEMPORANEO — GO-LIVE 2026-08-05. CANCELLARE questo blocco dopo il reset. -->
+    <div class="golive">
+      <div class="golive__tag">⛔ STRUMENTO TEMPORANEO — GO-LIVE — DA RIMUOVERE</div>
+      <button type="button" class="golive__btn" [disabled]="goliveBusy()" (click)="goliveSistemaConflitti()">
+        @if (goliveBusy()) { ⏳ STO SISTEMANDO… }
+        @else { 🧹 SISTEMA LE KEYWORD ({{ conflitti().length }} CONFLITTI APERTI) }
+      </button>
+      <p class="golive__note">
+        Archivia gli avvisi di conflitto rimasti aperti dopo il reset. <b>Non cancella nessuna keyword</b>:
+        firme, token e regole restano intatte.
+      </p>
+      @if (goliveEsito()) { <p class="golive__esito">{{ goliveEsito() }}</p> }
+    </div>
+    <!-- ⛔ fine blocco temporaneo -->
+
     @if (conflitti().length) {
       <div class="kw__alert">
         <mat-icon>warning</mat-icon>

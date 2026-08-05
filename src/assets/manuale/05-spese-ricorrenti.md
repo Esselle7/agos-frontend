@@ -50,7 +50,7 @@ La creazione avviene in un dialog a due passi: **Configurazione** → **Anteprim
 
 - Il sistema genera tutte le rate come **PENDING** (in attesa).
 - Le rate future compaiono nella Dashboard (**Pagamenti Ricorrenti**) e nelle **Previsioni**.
-- Quando una rata **arriva a scadenza** viene **pagata in automatico** (vedi [§11.4](#114-pagamento-delle-rate-automatico-e-manuale)).
+- Quando una rata **arriva a scadenza** resta in attesa: la confermi tu quando l'addebito compare in banca (vedi [§11.4](#114-pagamento-delle-rate-chi-conferma-lavvenuto-pagamento)).
 
 ### Impatto al pagamento (a seconda del conto)
 
@@ -123,36 +123,47 @@ Ogni volta che paghi una rata di finanziamento nascono **due movimenti**:
 
 ---
 
-## 11.4 Pagamento delle rate: automatico e manuale
+## 11.4 Pagamento delle rate: chi conferma l'avvenuto pagamento
 
-Le rate di un piano **attivo** si pagano da sole, ma puoi anche anticiparle a mano.
+> **Cambiato il 5 agosto 2026.** Prima le rate si pagavano **da sole** alla scadenza: ogni notte il
+> sistema le convertiva in movimenti, che la banca avesse addebitato o no. Se l'addebito slittava,
+> cambiava importo o non arrivava, il gestionale diceva "pagata" e nessuno se ne accorgeva.
+> **Ora la rata la conferma l'estratto conto.**
 
-### Pagamento automatico (alla scadenza)
+Una rata resta **PENDING** finché non c'è la prova che i soldi sono usciti. Nel frattempo la vedi
+nello [Scadenzario](13-scadenzario.md) e nelle [Previsioni](09-reporting-e-previsioni.md) come
+**uscita attesa** — che è la verità: quei soldi devono ancora muoversi.
 
-**Ogni giorno** il sistema controlla le rate arrivate a scadenza e le **converte in automatico in
-movimenti**, marcandole come pagate. Non devi fare nulla.
+Ci sono **due modi** per confermarla.
 
-- Il movimento nasce con **data = data di scadenza della rata** e stato **Registrato** (quindi entra
-  subito sia nel conto economico sia nel cash flow).
-- Per un **finanziamento** vengono creati i **due movimenti** (quota capitale + quota interessi);
-  per un **FLAT** un solo movimento.
-- Vale solo per i piani in stato **attivo**: un piano annullato non genera più rate.
+### 1. Dall'import — è la via normale
 
-### Pagamento manuale (in anticipo)
+Quando importi l'estratto conto, la riga dell'addebito finisce nella sezione
+**[Ricorrenti](06-import-e-smistamento.md#ricorrenti)** dello smistamento. Lì premi **Collega**,
+scegli piano e rata: la rata passa a **Pagato** e il movimento nasce con la **data reale
+dell'addebito**, non con la scadenza teorica.
 
-Se vuoi registrare una rata **prima** della scadenza:
+### 2. A mano, dal dettaglio del piano
+
+Se sai già che è stata pagata e non hai ancora importato:
 
 1. Apri il dettaglio del piano.
 2. Individua la rata **PENDING** → **Paga**.
-3. Conferma (stessi movimenti del caso automatico, ma con data di oggi).
+3. Conferma. Il movimento nasce con la data di oggi.
 
-**Cosa succede:** la rata passa a **Pagato** e l'**Avanzamento** del piano si aggiorna.
+In entrambi i casi: per un **finanziamento** nascono i **due movimenti** (quota capitale + quota
+interessi), per un **FLAT** uno solo; e vale solo per i piani **attivi**.
+
+> **Una rata scaduta che resta PENDING è un segnale, non un residuo.** Nel dettaglio del piano la
+> trovi marcata **"in attesa di addebito"**: significa che la scadenza è passata ma in banca non è
+> ancora successo niente. Controlla — o l'addebito è in ritardo, o qualcosa non torna.
 
 > Il dettaglio ti avvisa se il **saldo disponibile** sul conto non copre la rata
 > ("Saldo negativo" / "Residuo non coperto").
 >
-> Se non vuoi che una rata venga pagata alla scadenza, gestiscila **prima** con **Salta**
-> (Rimanda/Accorpa, vedi [§11.5](#115-saltare-una-rata-rimanda-o-accorpa)) o annulla il piano.
+> Se una rata non dovrà essere pagata, gestiscila con **Salta**
+> (Rimanda/Accorpa, vedi [§11.5](#115-saltare-una-rata-rimanda-o-accorpa)) o annulla il piano: così
+> smette di comparire tra le uscite attese.
 
 ---
 
@@ -192,9 +203,11 @@ Dal dettaglio → **Annulla piano**: tutte le rate ancora **PENDING** vengono ma
   sull'utile, gonfiando le perdite. Per i mutui/leasing usa sempre **Finanziamento**.
 - **Sbagliare i due conti del finanziamento:** il conto capitale dev'essere **20 – Passività**, il
   conto interessi **60 – Onere finanziario**. Invertiti, il conto economico è falsato.
-- **Le rate si pagano da sole alla scadenza:** se un mese non vuoi pagarne una, intervieni
-  **prima** con **Salta** (Rimanda/Accorpa) o annulla il piano; altrimenti verrà contabilizzata in
-  automatico.
+- **Dimenticare di confermare le rate:** dal 5 agosto 2026 nessuna rata si paga da sola. Se non
+  colleghi l'addebito dall'import (o non premi **Paga**), la rata resta PENDING e il conto economico
+  non vede quel costo. Le rate scadute e non confermate sono marcate **"in attesa di addebito"**.
+- **Rata che non va pagata affatto:** usa **Salta** (Rimanda/Accorpa) o annulla il piano, così esce
+  dalle uscite attese invece di restare lì a segnalare un problema che non c'è.
 
 ---
 

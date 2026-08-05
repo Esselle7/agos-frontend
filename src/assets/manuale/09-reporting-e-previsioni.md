@@ -21,6 +21,16 @@ confrontando i periodi e le Business Unit.
 - È la stessa logica della [Parte I, cap. 3](01-capire-il-gestionale.md#3-il-conto-economico):
   ogni riga è alimentata dalla famiglia di conto corrispondente.
 
+> ⚠️ **I mesi prima dell'apertura sono vuoti, e va bene così.** Il gestionale conosce solo i
+> movimenti registrati dalla [data di apertura](12-situazione-iniziale.md) in poi. Se scegli un
+> periodo che inizia prima, quei mesi risultano a **zero**: non è un errore di calcolo, è che quel
+> periodo non è coperto. La pagina te lo segnala con un avviso e ti indica la data di partenza.
+> Per un confronto sensato, scegli un intervallo che parte dall'apertura.
+>
+> Le **partite di apertura** (crediti e debiti pregressi) non compaiono qui: hanno competenza
+> nell'anno precedente proprio per non falsare questo prospetto. Le trovi nello
+> [Scadenzario](13-scadenzario.md).
+
 ### Come si legge
 
 1. **Report → P&L Comparativo.**

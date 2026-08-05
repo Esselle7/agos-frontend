@@ -17,6 +17,7 @@ import { MatTableModule } from '@angular/material/table';
 
 import { ReportingService } from '../../core/services/reporting.service';
 import { BuService } from '../../core/services/bu.service';
+import { ContiService } from '../../core/services/conti.service';
 import { DataRefreshService } from '../../core/services/data-refresh.service';
 import { PlComparativoDTO } from '../../core/models/reporting.models';
 import { BusinessUnitDTO } from '../../core/models/anagrafica.models';
@@ -48,6 +49,7 @@ import { EuroPipe } from '../../shared/pipes/euro.pipe';
 export class PlComparativoComponent implements OnInit {
   private readonly reportingSvc = inject(ReportingService);
   private readonly buSvc = inject(BuService);
+  private readonly contiSvc = inject(ContiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dataRefresh = inject(DataRefreshService);
 
@@ -58,6 +60,22 @@ export class PlComparativoComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly businessUnits = signal<BusinessUnitDTO[]>([]);
   readonly tableColumns = ['bu', 'ricavi', 'costi', 'ebitda', 'marginePct', 'ebit', 'utileNetto'];
+
+  /**
+   * Data di apertura del gestionale, letta dai conti (`dataSaldoIniziale`) invece di essere cablata:
+   * la scrive la pagina "Situazione iniziale" ed è l'unica fonte di verità. Si prende la PIÙ RECENTE
+   * fra i conti valorizzati, perché prima di quella data i dati economici non sono completi.
+   */
+  readonly dataApertura = signal<string | null>(null);
+  /** Vero quando il periodo scelto inizia prima dell'apertura: i mesi precedenti sono vuoti per costruzione. */
+  readonly periodoPrimaDellApertura = computed(() => {
+    const ap = this.dataApertura();
+    return !!ap && this.period().from < ap;
+  });
+  readonly dataAperturaLabel = computed(() => {
+    const ap = this.dataApertura();
+    return ap ? new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ap)) : '';
+  });
 
   readonly sortedRows = computed(() => {
     const d = this.data();
@@ -152,6 +170,12 @@ export class PlComparativoComponent implements OnInit {
     this.buSvc.getAll()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(units => this.businessUnits.set(units));
+    this.contiSvc.getAll()
+      .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+      .subscribe(conti => {
+        const date = conti.map(c => c.dataSaldoIniziale).filter((d): d is string => !!d).sort();
+        this.dataApertura.set(date.length ? date[date.length - 1] : null);
+      });
     this.load();
     // Auto-refresh dopo mutation backend (movimento creato/aggiornato, pagamento
     // evento, rata ricorrente): l'interceptor invalida la cache FE e notifica qui.

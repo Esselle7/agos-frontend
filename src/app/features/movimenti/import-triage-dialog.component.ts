@@ -40,6 +40,8 @@ import {
   MatchingDifferitoDTO,
 } from '../../core/models/movimenti.models';
 import { ImportCountsService } from '../import/import-counts.service';
+import { SpeseRicorrentiService } from '../../core/services/spese-ricorrenti.service';
+import { PlanSummaryDTO, InstallmentDTO } from '../spese-ricorrenti/spese-ricorrenti.models';
 import {
   PianoContiCogeDTO,
   FornitoreSummaryDTO,
@@ -95,6 +97,7 @@ export class ImportTriageDialogComponent implements OnInit {
   private readonly lookupService = inject(LookupService);
   private readonly fornitoriService = inject(FornitoriService);
   private readonly buService = inject(BuService);
+  private readonly speseRicorrentiService = inject(SpeseRicorrentiService);
   private readonly snackBar = inject(MatSnackBar);
 
   /** Sezione attiva (da rotta :sezione) → indice del tab (header nascosti, guida la nav laterale). */
@@ -195,6 +198,7 @@ export class ImportTriageDialogComponent implements OnInit {
             r.content.forEach(x => { sel[x.id] = x.cogeSuggeritoId; });
             this.cogeSelRic.set(sel);
             this.ricorrenti.set(r.content); done();
+            this.caricaPiani();          // servono alla scelta del piano per COLLEGA
           }, error: fail });
         break;
       case 'eventi':
@@ -276,6 +280,65 @@ export class ImportTriageDialogComponent implements OnInit {
   // ── Spese ricorrenti parcheggiate (V9 + V22) ─────────────────────────────────
   setCogeRic(ricorrenteId: string, cogeId: number | null): void {
     this.cogeSelRic.update(m => ({ ...m, [ricorrenteId]: cogeId }));
+  }
+
+  // ── COLLEGA: aggancia la riga alla rata di un piano ──────────────────────────
+  // Nessun suggerimento automatico: sceglie l'utente (docs/specs/ricorrenti-collega-da-import.md).
+  readonly piani = signal<PlanSummaryDTO[]>([]);
+  readonly rateDiPiano = signal<Record<string, InstallmentDTO[]>>({});   // pianoId → rate collegabili
+  readonly pianoSelRic = signal<Record<string, string | null>>({});      // rigaId → pianoId
+  readonly rataSelRic  = signal<Record<string, string | null>>({});      // rigaId → rataId
+
+  private caricaPiani(): void {
+    if (this.piani().length) return;
+    this.speseRicorrentiService.listPlans()
+      .subscribe({ next: p => this.piani.set(p.filter(x => x.stato === 'ATTIVO')), error: () => {} });
+  }
+
+  setPianoRic(rigaId: string, pianoId: string | null): void {
+    this.pianoSelRic.update(m => ({ ...m, [rigaId]: pianoId }));
+    this.rataSelRic.update(m => ({ ...m, [rigaId]: null }));
+    if (!pianoId || this.rateDiPiano()[pianoId]) return;
+    this.speseRicorrentiService.getPlan(pianoId).subscribe({
+      // solo PENDING (da pagare) e PAID (già generata dallo scheduler: si aggancia senza duplicare)
+      next: d => this.rateDiPiano.update(m => ({
+        ...m, [pianoId]: d.rate.filter(r => r.stato === 'PENDING' || r.stato === 'PAID'),
+      })),
+      error: () => {},
+    });
+  }
+
+  setRataRic(rigaId: string, rataId: string | null): void {
+    this.rataSelRic.update(m => ({ ...m, [rigaId]: rataId }));
+  }
+
+  rateSelezionabili(rigaId: string): InstallmentDTO[] {
+    const p = this.pianoSelRic()[rigaId];
+    return p ? this.rateDiPiano()[p] ?? [] : [];
+  }
+
+  /** Etichetta della rata: dice subito se agganciarla creerà o meno un movimento. */
+  etichettaRata(r: InstallmentDTO): string {
+    const esito = r.stato === 'PAID' ? 'già pagata → si aggancia' : 'da pagare → crea il movimento';
+    return `Rata ${r.numeroRata} · ${r.dataScadenza} · € ${r.importo} · ${esito}`;
+  }
+
+  canCollegare(r: RicorrenteParcheggiataDTO): boolean {
+    return r.tipo === 'USCITA' && !!this.pianoSelRic()[r.id] && !!this.rataSelRic()[r.id];
+  }
+
+  collegaRicorrente(r: RicorrenteParcheggiataDTO): void {
+    if (!this.canCollegare(r)) return;
+    this.saving.set(r.id);
+    this.movimentiService.risolviRicorrente(r.id, {
+      azione: 'COLLEGA', cogeId: null,
+      pianoId: this.pianoSelRic()[r.id], rataId: this.rataSelRic()[r.id], nota: null,
+    }).subscribe({
+      next: () => { this.saving.set(null); this.ricorrenti.update(rs => rs.filter(x => x.id !== r.id)); this.modificato = true;
+        this.counts.reload();
+        this.snackBar.open('Riga collegata alla rata del piano', 'OK', { duration: 2500 }); },
+      error: err => this.fail(err),
+    });
   }
 
   /** Su USCITA serve un CoGe scelto; su ENTRATA il backend forza 90.01.001. */
