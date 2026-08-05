@@ -58,6 +58,12 @@ Sopra le liste trovi i totali di sintesi: quanto hai **da pagare** e **da riceve
 e quanti **eventi** e quante **rate ricorrenti** sono ancora aperti. Se ci sono scaduti, un banner
 ne riassume il numero per natura.
 
+> **Dal 5 agosto 2026 le rate ricorrenti scadute restano qui finché non le confermi.** Prima
+> sparivano da sole alla scadenza, perché il sistema le dava per pagate senza chiedere niente alla
+> banca. Ora una rata scaduta e ancora in elenco vuol dire una cosa precisa: *in banca quell'addebito
+> non è ancora arrivato*. Si chiude collegandola dall'[import](06-import-e-smistamento.md#ricorrenti)
+> o pagandola a mano ([§11.4](05-spese-ricorrenti.md)).
+
 ## Come si usa
 
 1. Apri **Scadenzario** (o clicca il **campanellino** in alto a destra quando è acceso).
