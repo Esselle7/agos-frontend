@@ -5,12 +5,14 @@ import { ImportKpiDTO } from '../../core/models/movimenti.models';
 
 /** Contatori per le sezioni di smistamento. */
 export interface ImportCounts {
+  /** Righe su conto transitorio: dall'11/08/2026 include anche gli Effetti/RiBa (audit §7.7). */
   catalogare: number;
-  riba: number;
   ricorrenti: number;
   eventi: number;
   duplicati: number;
   matchingDifferiti: number;
+  /** Righe bancarie fuori dai conti: è denaro, non lavoro d'ufficio — badge ROSSO (audit §7.4). */
+  scartati: number;
 }
 
 /**
@@ -23,7 +25,7 @@ export class ImportCountsService {
   private readonly movimenti = inject(MovimentiService);
 
   readonly kpi = signal<ImportKpiDTO | null>(null);
-  readonly counts = signal<ImportCounts>({ catalogare: 0, riba: 0, ricorrenti: 0, eventi: 0, duplicati: 0, matchingDifferiti: 0 });
+  readonly counts = signal<ImportCounts>({ catalogare: 0, ricorrenti: 0, eventi: 0, duplicati: 0, matchingDifferiti: 0, scartati: 0 });
   readonly loading = signal(false);
 
   reload(): void {
@@ -33,20 +35,20 @@ export class ImportCountsService {
     forkJoin({
       kpi: this.movimenti.getImportKpi(),
       catalogare: this.movimenti.getTransitori(undefined, 0, 1),
-      riba: this.movimenti.getRibaTransitori(0, 1),
       ricorrenti: this.movimenti.getRicorrenti('DA_RICONCILIARE', 0, 1),
       eventi: this.movimenti.getEventiParcheggiati('DA_RICONCILIARE', 0, 1),
       matchingDifferiti: this.movimenti.getMatchingDifferiti('DA_RICONCILIARE', 0, 1),
+      scartati: this.movimenti.getScartati('DA_VEDERE', 0, 1),
     }).subscribe({
       next: r => {
         this.kpi.set(r.kpi);
         this.counts.update(c => ({
           ...c,
           catalogare: r.catalogare.totalElements,
-          riba: r.riba.totalElements,
           ricorrenti: r.ricorrenti.totalElements,
           eventi: r.eventi.totalElements,
           matchingDifferiti: r.matchingDifferiti.totalElements,
+          scartati: r.scartati.totalElements,
         }));
         this.loading.set(false);
       },

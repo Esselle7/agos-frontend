@@ -23,11 +23,13 @@
       </div>
       <div class="imp__nav-sep">Smistamento</div>
       <div class="imp__nav-group">
-        @for (n of navSmistamento; track n.link) {
+        @for (n of vociVisibili(); track n.link) {
           <a class="imp__nav-item" [routerLink]="n.link" routerLinkActive="active">
             <mat-icon>{{ n.icon }}</mat-icon>
             <span class="imp__nav-label">{{ n.label }}</span>
-            @if (n.badge && n.badge() > 0) { <span class="imp__badge">{{ n.badge() }}</span> }
+            @if (n.badge && n.badge() > 0) {
+              <span class="imp__badge" [class.imp__badge--rosso]="n.badgeRosso">{{ n.badge() }}</span>
+            }
           </a>
         }
       </div>

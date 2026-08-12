@@ -45,6 +45,7 @@ export const API_PATHS = {
     IMPORT_HISTORY:   '/api/movimenti/import/history',
     IMPORT_AMBIGUITA:     (logId: string) => `/api/movimenti/import/${logId}/ambiguita`,
     CLASSIFICA_AMBIGUITA: (id: string)    => `/api/movimenti/import/ambiguita/${id}/classifica`,
+    AMBIGUITA_E_UN_EVENTO: (id: string)   => `/api/movimenti/import/ambiguita/${id}/e-un-evento`,
     IMPORT_KPI:           '/api/movimenti/import/kpi',
     IMPORT_REGOLE:        '/api/movimenti/import/regole',
     IMPORT_REGOLA_ATTIVA: (id: number)    => `/api/movimenti/import/regole/${id}/attiva`,
@@ -56,8 +57,13 @@ export const API_PATHS = {
     IMPORT_EVENTO_RISOLVI:       (id: string) => `/api/movimenti/import/eventi/${id}/risolvi`,
     IMPORT_RICORRENTI:           '/api/movimenti/import/ricorrenti',
     IMPORT_RICORRENTE_RISOLVI:   (id: string) => `/api/movimenti/import/ricorrenti/${id}/risolvi`,
-    IMPORT_TRANSITORI_RIBA:      '/api/movimenti/import/transitori/riba',
+    IMPORT_BU_PER_COGE:          '/api/movimenti/import/bu-per-coge',
+    IMPORT_SCARTATI:             '/api/movimenti/import/scartati',
+    IMPORT_SCARTATO_RISOLVI:     (id: string) => `/api/movimenti/import/scartati/${id}/risolvi`,
     IMPORT_QUADRATURA:           '/api/movimenti/import/quadratura',
+    // Pannello BU dell'import: movimenti raggruppati per Business Unit + cambio BU (analitico)
+    IMPORT_BU_PANEL:             (logId: string) => `/api/movimenti/import/${logId}/bu`,
+    IMPORT_BU_CAMBIA:            (logId: string, movId: string) => `/api/movimenti/import/${logId}/bu/${movId}`,
     IMPORT_ANALISI_DUPLICATI:    '/api/movimenti/import/eventi/analisi-duplicati',
     // Feature 1 — movimenti DA_LIQUIDARE scaduti (in ritardo)
     DA_LIQUIDARE_RITARDO:        '/api/movimenti/da-liquidare-in-ritardo',

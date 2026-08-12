@@ -29,12 +29,21 @@ export interface PlanSummaryDTO {
   numeroRate: number;
   dataPrimaRata: string;
   stato: PlanStato;
+  riferimentoEstrattoConto: string | null;
   ratePending: number;
   ratePaid: number;
   rateSkipped: number;
   rateCancelled: number;
   totalePagato: number;
   totaleResiduo: number;
+}
+
+/** Modifica di un piano esistente: solo anagrafica + riconoscimento, mai gli importi. */
+export interface PlanUpdateRequest {
+  descrizione: string;
+  contoBancarioId: number;
+  riferimentoEstrattoConto: string | null;
+  note: string | null;
 }
 
 export interface PlanDetailDTO extends PlanSummaryDTO {
@@ -62,6 +71,8 @@ export interface PlanCreateRequest {
   numeroRate: number;
   dataInizio: string;
   note?: string;
+  /** Testo con cui l'import riconosce l'addebito in estratto conto (mandato SDD, creditore, n. contratto). */
+  riferimentoEstrattoConto?: string;
   tipoPiano?: TipoPiano;
   importoDebitoIniziale?: number;
   tassoInteresseAnnuo?: number;
@@ -72,4 +83,6 @@ export interface CogeOption {
   id: number;
   codice: string;
   descrizione: string;
+  /** PASSIVITA | COSTO — un FINANZIAMENTO ammette solo PASSIVITA. */
+  tipo?: string;
 }

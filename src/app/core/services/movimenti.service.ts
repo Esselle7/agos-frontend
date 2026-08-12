@@ -24,9 +24,12 @@ import {
   KeywordAnteprimaDTO,
   RicorrenteParcheggiataDTO,
   RisolviRicorrenteRequest,
+  ScartatoDTO,
+  RisolviScartatoRequest,
   QuadraturaPeriodoDTO,
   MatchingDifferitoDTO,
   RisolviMatchingDifferitoRequest,
+  BuPanelDTO,
 } from '../models/movimenti.models';
 import { PagedResponse, MovimentoDTOShared } from '../models/shared.models';
 import { API_PATHS } from '../constants/api-paths';
@@ -227,6 +230,13 @@ export class MovimentiService {
     );
   }
 
+  /** "Va che è un evento": sposta la riga ambigua nella coda degli incassi-evento. */
+  ambiguitaEUnEvento(id: string): Observable<void> {
+    return this.http.put<void>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.AMBIGUITA_E_UN_EVENTO(id), {}
+    );
+  }
+
   // ── Triage assistito / KPI / regole data-driven (ETL v2 §8/§9/§13) ──────────
 
   getImportKpi(): Observable<ImportKpiDTO> {
@@ -306,10 +316,23 @@ export class MovimentiService {
       environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_RICORRENTE_RISOLVI(id), req);
   }
 
-  getRibaTransitori(page = 0, size = 2000): Observable<PagedResponse<TransitorioDTO>> {
-    const params = new HttpParams().set('page', page).set('size', size);
-    return this.http.get<PagedResponse<TransitorioDTO>>(
-      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_TRANSITORI_RIBA, { params });
+  // ── Coda «Righe fuori dai conti» (audit §7.4) ───────────────────────────────
+
+  getScartati(stato = 'DA_VEDERE', page = 0, size = 2000): Observable<PagedResponse<ScartatoDTO>> {
+    const params = new HttpParams().set('stato', stato).set('page', page).set('size', size);
+    return this.http.get<PagedResponse<ScartatoDTO>>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_SCARTATI, { params });
+  }
+
+  risolviScartato(id: string, req: RisolviScartatoRequest): Observable<void> {
+    return this.http.put<void>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_SCARTATO_RISOLVI(id), req);
+  }
+
+  /** Rami storicamente usati per ogni conto: il wizard chiede la BU solo se ce n'è più d'uno. */
+  getBuPerCoge(): Observable<Record<number, number[]>> {
+    return this.http.get<Record<number, number[]>>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_BU_PER_COGE);
   }
 
   // ── Feature 1: movimenti DA_LIQUIDARE scaduti (in ritardo) ──────────────────
@@ -345,6 +368,21 @@ export class MovimentiService {
     if (importLogId) params = params.set('importLogId', importLogId);
     return this.http.get<QuadraturaPeriodoDTO | null>(
       environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_QUADRATURA, { params });
+  }
+
+  // ── Pannello BU dell'import ─────────────────────────────────────────────────
+
+  /** Movimenti dell'import raggruppati per BU, con la coda "da assegnare" a parte. */
+  getBuPanel(importLogId: string): Observable<BuPanelDTO> {
+    return this.http.get<BuPanelDTO>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_BU_PANEL(importLogId));
+  }
+
+  /** Sposta un movimento su un'altra BU. Dimensione analitica: nessun saldo si muove. */
+  cambiaBu(importLogId: string, movimentoId: string, businessUnitId: number): Observable<void> {
+    return this.http.put<void>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_BU_CAMBIA(importLogId, movimentoId),
+      { businessUnitId });
   }
 
   /** Coppie di eventi sospette duplicate (confidenza + motivazioni), per la revisione. */

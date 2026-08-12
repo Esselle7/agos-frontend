@@ -219,6 +219,30 @@ export interface TransitorioDTO {
   contoBancarioId: number | null;
   ibanEstratto: string | null;
   controparteEstratta: string | null;
+  /** Chiave del gruppo: righe dello STESSO esercente. null = questa riga è una decisione a sé. */
+  gruppo: string | null;
+  /** Data in cui la vendita è avvenuta, se la causale la dichiara ("… DEL 10/01/26"). */
+  dataOperazione: string | null;
+  /** Circuito dell'incasso POS letto dalla causale (NEXI, NUMIA-INTER…); null se non è POS. */
+  circuitoPos: string | null;
+  /** Cosa Billy ha registrato lo stesso giorno sullo stesso conto — di GIORNATA, non 1:1. */
+  riscontroBilly: RiscontroBillyDTO | null;
+  /** Conto proposto da una firma keyword appresa — suggerimento, mai applicato da solo. */
+  cogeSuggeritoId: number | null;
+  motivoSuggerimento: string | null;
+}
+
+/**
+ * Riscontro Billy di giornata per una riga bancaria POS.
+ *
+ * NON è l'abbinamento scontrino↔accredito: quello non esiste nei dati (la riconciliazione POS
+ * ripartisce i totali di periodo). Misurato: 32 righe POS su 48 hanno un riscontro, con importi
+ * che non coincidono. Serve a dare l'ordine di grandezza, non a quadrare al centesimo.
+ */
+export interface RiscontroBillyDTO {
+  scontrini: number;
+  totale: number;
+  scarto: number;
 }
 
 export interface ClassificaTransitorioRequest {
@@ -253,7 +277,6 @@ export interface QuadraturaPeriodoDTO {
   assegnatoCa: number;
   codaTesta: number;
   codaFondo: number;
-  residuoCore: number;
   maxDelBanca: string | null;
   note: string[];
   approssimazioni: string[];
@@ -275,7 +298,11 @@ export interface EventoParcheggiatoDTO {
   controparteIban: string | null;
   dataEventoEstratta: string | null;
   stato: string;                       // DA_RICONCILIARE | RICONCILIATO | SCARTATO
+  /** Proposto dal sistema solo se nome controparte E data evento coincidono. null = scegli tu. */
+  eventoSuggeritoId: string | null;
+  eventoSuggeritoNome: string | null;
 }
+
 
 export interface RisolviEventoRequest {
   azione: 'SCARTA' | 'CLASSIFICA' | 'RICONCILIA';
@@ -283,6 +310,8 @@ export interface RisolviEventoRequest {
   businessUnitId: number | null;
   eventoId: string | null;
   nota: string | null;
+  tipo?: import('./eventi.models').TipoPagamentoEvento | null;
+  creaSegnaposto?: boolean;
 }
 
 // ── Analisi duplicati eventi (aggancio cross-sorgente senza chiave) ────────────
@@ -396,6 +425,36 @@ export interface KeywordAnteprimaDTO {
   firme: KeywordAnteprimaFirma[];
 }
 
+// ── Coda «Righe fuori dai conti» (audit §7.4) ───────────────────────────────
+
+/**
+ * Riga bancaria che l'import NON ha contabilizzato e che nessuna schermata mostrava
+ * fino all'11/08/2026: è denaro fuori dai conti finché qualcuno non la guarda.
+ */
+export interface ScartatoDTO {
+  id: string;
+  importLogId: string;
+  fonte: string;
+  rigaNumero: number;
+  motivo: string;           // SKIP_POS | SKIP_CODA_TESTA | SKIP_GIROCONTO
+  motivoLeggibile: string;  // il «perché» in italiano, da mostrare a schermo
+  dataMovimento: string | null;
+  importo: number;
+  tipo: string | null;      // ENTRATA | USCITA
+  descrizione: string | null;
+  contoBancarioId: number | null;
+  contoNome: string | null;
+  stato: string;            // DA_VEDERE | CONTABILIZZATA | IGNORATA
+  movimentoId: string | null;
+  /** false = il grezzo non basta più per creare un movimento: la riga si vede ma non si contabilizza. */
+  normalizzabile: boolean;
+}
+
+export interface RisolviScartatoRequest {
+  azione: 'CONTABILIZZA' | 'IGNORA';
+  cogeId: number | null;   // obbligatorio su CONTABILIZZA
+}
+
 // ── Parcheggio spese ricorrenti / finanziamenti (V9) ────────────────────────
 
 export interface RicorrenteParcheggiataDTO {
@@ -411,6 +470,22 @@ export interface RicorrenteParcheggiataDTO {
   stato: string;          // DA_RICONCILIARE | CONFERMATA | IGNORATA | RICONCILIATA(legacy)
   cogeSuggeritoId: number | null;
   cogeSuggeritoCodice: string | null;
+  /** Match strutturato coi piani attivi: rata proponibile con un click, null se assente/ambigua. */
+  propostaRataId: string | null;
+  candidati: CandidatoRataDTO[];
+}
+
+/** Una rata compatibile con la riga bancaria, col motivo del match in chiaro. */
+export interface CandidatoRataDTO {
+  pianoId: string;
+  pianoDescrizione: string;
+  rataId: string;
+  numeroRata: number;
+  dataScadenza: string;
+  importoRata: number;
+  scartoGiorni: number;
+  scartoImporto: number;
+  motivo: string;
 }
 
 export interface RisolviRicorrenteRequest {
@@ -459,4 +534,40 @@ export interface RisolviMatchingDifferitoRequest {
   /** opzionale per COLLEGA: override del metodo di pagamento da usare in liquidazione. */
   metodoPagamentoId: number | null;
   nota: string | null;
+}
+
+// ── Pannello BU dell'import ───────────────────────────────────────────────────
+// I movimenti creati da UN import raggruppati per Business Unit, con la coda
+// "da assegnare" a parte (transitorio 39/49.99.999 ancora sulla BU di fallback 5).
+
+export interface BuRigaDTO {
+  id: string;
+  tipo: 'ENTRATA' | 'USCITA';
+  importo: number;
+  dataMovimento: string;
+  descrizione: string | null;
+  cogeCodice: string;
+  cogeDescrizione: string;
+  buId: number;
+  /** conto CoGe «da classificare»: la BU è assegnata ma la CoGe resta da sistemare */
+  transitorio: boolean;
+}
+
+export interface BuGruppoDTO {
+  buId: number | null;       // null = coda "da assegnare"
+  buCodice: string | null;
+  buNome: string;
+  numero: number;
+  entrate: number;
+  uscite: number;
+  movimenti: BuRigaDTO[];
+}
+
+export interface BuPanelDTO {
+  importLogId: string;
+  dataImport: string;
+  filename: string | null;
+  totaleMovimenti: number;   // = Σ gruppi.numero + incerti.numero
+  gruppi: BuGruppoDTO[];
+  incerti: BuGruppoDTO;
 }

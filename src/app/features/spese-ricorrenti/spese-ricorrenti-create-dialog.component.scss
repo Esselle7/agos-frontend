@@ -631,3 +631,36 @@
 // Caption per i campi COGE migrati al coge-picker (sostituiscono mat-hint/mat-error)
 .src-field__hint { margin: 4px 2px 0; font-size: .72rem; color: var(--text-sub); }
 .src-field__err  { margin: 4px 2px 0; font-size: .72rem; color: var(--danger); }
+
+/* ══ Nota a margine "spese ricorrenti da creare" — scaffolding del go-live ══
+   Si cancella insieme a piani-da-creare.ts quando la lista si svuota. */
+.src-todo {
+  grid-column: 1 / -1;
+  margin: 0 0 1rem; padding: .55rem .8rem;
+  border: 1px solid color-mix(in srgb, var(--info) 32%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--info) 7%, transparent);
+
+  summary {
+    display: flex; align-items: center; gap: .45rem; flex-wrap: wrap;
+    cursor: pointer; font-size: .88rem; color: var(--text-main);
+    small { color: var(--text-sub); font-size: .76rem; }
+  }
+  &__intro { margin: .6rem 0 .4rem; font-size: .8rem; color: var(--text-sub); }
+  &__item {
+    padding: .55rem 0; border-top: 1px solid color-mix(in srgb, var(--info) 18%, transparent);
+    display: flex; flex-direction: column; align-items: flex-start; gap: .3rem;
+  }
+  &__head { display: flex; flex-direction: column; gap: .1rem; }
+  &__meta { font-size: .76rem; color: var(--text-sub); }
+  &__obs { margin: 0; font-size: .78rem; color: var(--text-sub); }
+  &__warn {
+    margin: 0; font-size: .78rem; color: var(--warning, var(--text-main));
+    display: flex; align-items: flex-start; gap: .3rem;
+  }
+}
+.src-todo__done {
+  grid-column: 1 / -1;
+  margin: 0 0 .8rem; font-size: .82rem; color: var(--success, var(--text-main));
+  display: flex; align-items: center; gap: .35rem;
+}

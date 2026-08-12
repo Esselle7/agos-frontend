@@ -13,7 +13,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SpeseRicorrentiService } from '../../core/services/spese-ricorrenti.service';
-import { CogeOption, TipoPiano } from './spese-ricorrenti.models';
+import { CogeOption, PlanSummaryDTO, TipoPiano } from './spese-ricorrenti.models';
+import { PIANI_DA_CREARE, PianoDaCreare } from './piani-da-creare';
 import { ContoBancarioDTO, PianoContiCogeDTO } from '../../core/models/anagrafica.models';
 import { CogePickerComponent } from '../../shared/components/coge-picker/coge-picker.component';
 
@@ -71,7 +72,12 @@ export class SpeseRicorrentiCreateDialogComponent implements OnInit {
   readonly contiCoge          = signal<CogeOption[]>([]);
   readonly contiCogeInteressi = signal<CogeOption[]>([]);
   // Id ammessi per il picker: stesso identico subset curato dal server (nessuna voce in più).
-  readonly cogeIds          = computed(() => this.contiCoge().map(c => c.id));
+  // Un FINANZIAMENTO rimborsa un debito: solo PASSIVITA. Un piano FLAT è un costo d'esercizio
+  // (canone, utenza, assicurazione) e ammette anche i COSTO — stessa regola del server.
+  readonly cogeAmmessi = computed(() => this.isFinanziamento()
+    ? this.contiCoge().filter(c => c.tipo === 'PASSIVITA')
+    : this.contiCoge());
+  readonly cogeIds          = computed(() => this.cogeAmmessi().map(c => c.id));
   readonly cogeInteressiIds = computed(() => this.contiCogeInteressi().map(c => c.id));
   readonly contiBancari       = signal<ContoBancarioDTO[]>([]);
   readonly saving             = signal(false);
@@ -176,6 +182,7 @@ export class SpeseRicorrentiCreateDialogComponent implements OnInit {
       meseInizio:            [meseDefault, Validators.required],
       annoInizio:            [annoDefault, Validators.required],
       note:                  ['', [AppValidators.safeText()]],
+      riferimentoEstrattoConto: ['', [AppValidators.safeText(), Validators.maxLength(120)]],
       importoDebitoIniziale: [null],
       tassoInteresseAnnuo:   [null],
       contoCogeInteressiId:  [null],
@@ -199,6 +206,49 @@ export class SpeseRicorrentiCreateDialogComponent implements OnInit {
     this.service.getContiCoge().subscribe({ next: d => { this.contiCoge.set(d); this.checkLoaded(); } });
     this.service.getContiCogeInteressi().subscribe({ next: d => { this.contiCogeInteressi.set(d); this.checkLoaded(); } });
     this.service.getContiBancari().subscribe({ next: d => { this.contiBancari.set(d); this.checkLoaded(); } });
+    // Serve solo alla nota a margine: non blocca il form se fallisce.
+    this.service.listPlans().subscribe({ next: p => this.pianiEsistenti.set(p), error: () => {} });
+  }
+
+  // ── Nota a margine: le spese ricorrenti da ricreare dopo il reset del go-live ──
+  // Dati STATICI in piani-da-creare.ts (nessuna deduzione a runtime). Una voce sparisce da sola
+  // quando il piano corrispondente esiste; quando spariscono tutte, il file e questo blocco
+  // vanno cancellati. Vedi il commento in testa a piani-da-creare.ts.
+  readonly pianiEsistenti = signal<PlanSummaryDTO[]>([]);
+  readonly suggerimentoUsato = signal<string | null>(null);
+
+  readonly daCreare = computed<PianoDaCreare[]>(() => {
+    const esistenti = this.pianiEsistenti().filter(p => p.stato !== 'ANNULLATO');
+    const norm = (x: string | null | undefined) => (x ?? '').trim().toUpperCase();
+    return PIANI_DA_CREARE.filter(s => !esistenti.some(p =>
+      norm(p.descrizione) === norm(s.descrizione)
+      || (norm(s.riferimentoEstrattoConto) !== '' && norm(p.riferimentoEstrattoConto) === norm(s.riferimentoEstrattoConto))));
+  });
+
+  /** Copia nel form tutto tranne gli importi: quelli si leggono dal contratto, non dall'estratto conto. */
+  applicaSuggerimento(s: PianoDaCreare): void {
+    this.form.patchValue({
+      descrizione: s.descrizione,
+      contoBancarioId: s.contoBancarioId,
+      giornoDelMese: s.giornoDelMese,
+      frequenza: s.frequenza,
+      tipoPiano: s.tipoPiano,
+      riferimentoEstrattoConto: s.riferimentoEstrattoConto,
+      contoCoge: this.cogeIdDaCodice(this.contiCoge(), s.cogeCodice),
+      contoCogeInteressiId: this.cogeIdDaCodice(this.contiCogeInteressi(), s.cogeInteressiCodice ?? null),
+      note: s.osservato,
+    });
+    this.form.markAsDirty();
+    this.suggerimentoUsato.set(s.descrizione);
+    // chiudi l'elenco e torna in cima: altrimenti il form si compila fuori dallo schermo
+    // e sembra che il click non abbia fatto niente.
+    // L'elenco si richiude nel template (`nota.open = false`, stato nativo di <details>);
+    // qui si riporta solo la vista in cima, altrimenti il form si compila fuori schermo.
+    document.querySelector('.src-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  private cogeIdDaCodice(opzioni: CogeOption[], codice: string | null): number | null {
+    return codice ? (opzioni.find(c => c.codice === codice)?.id ?? null) : null;
   }
 
   private loaded = 0;
@@ -477,6 +527,7 @@ export class SpeseRicorrentiCreateDialogComponent implements OnInit {
       numeroRate:            resolved.numeroRate,
       dataInizio:            `${v.annoInizio}-${mm}-01`,
       note:                  v.note || undefined,
+      riferimentoEstrattoConto: v.riferimentoEstrattoConto || undefined,
       tipoPiano:             isFinanziamento ? 'FINANZIAMENTO' : undefined,
       importoDebitoIniziale: isFinanziamento ? v.importoDebitoIniziale : undefined,
       tassoInteresseAnnuo:   isFinanziamento ? v.tassoInteresseAnnuo : undefined,

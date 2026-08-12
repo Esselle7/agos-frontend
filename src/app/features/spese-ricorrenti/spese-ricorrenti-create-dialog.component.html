@@ -28,6 +28,50 @@
          STEP 1 — Configurazione
          ════════════════════════════════════════════ -->
     @if (step() === 1) {
+      <!-- ══ Nota a margine: cosa va ricreato dopo il reset del go-live ══
+           Elenco STATICO (piani-da-creare.ts) ricavato dagli estratti conto reali: quando una voce
+           viene creata sparisce da sola, e a lista vuota si cancella tutto il blocco. -->
+      @if (daCreare().length) {
+        <details class="src-todo" #nota>
+          <summary>
+            <mat-icon>fact_check</mat-icon>
+            <span><strong>{{ daCreare().length }} spese ricorrenti</strong> risultano ancora da creare</span>
+            <small>dagli estratti conto gen–lug 2026 · clicca una voce per compilare il form</small>
+          </summary>
+
+          <p class="src-todo__intro">
+            Dati già pronti tranne <strong>gli importi</strong>: quelli si prendono dal contratto, non
+            dall'estratto conto. Il campo «come si riconosce in banca» è ciò che permette all'import
+            di proporti la rata giusta da solo.
+          </p>
+
+          @for (s of daCreare(); track s.descrizione) {
+            <div class="src-todo__item">
+              <div class="src-todo__head">
+                <strong>{{ s.descrizione }}</strong>
+                <span class="src-todo__meta">
+                  {{ s.contoBancarioNome }} · giorno {{ s.giornoDelMese }} · {{ s.frequenza | lowercase }}
+                  @if (s.tipoPiano === 'FINANZIAMENTO') { · finanziamento }
+                </span>
+              </div>
+              <p class="src-todo__obs">{{ s.osservato }}</p>
+              @if (s.attenzione) {
+                <p class="src-todo__warn"><mat-icon inline>warning</mat-icon> {{ s.attenzione }}</p>
+              }
+              <button mat-stroked-button type="button" (click)="applicaSuggerimento(s); nota.open = false">
+                <mat-icon>content_paste_go</mat-icon> Compila il form con questi dati
+              </button>
+            </div>
+          }
+        </details>
+      }
+      @if (suggerimentoUsato(); as usato) {
+        <p class="src-todo__done">
+          <mat-icon inline>check_circle</mat-icon>
+          Dati di «{{ usato }}» copiati nel form: mancano solo gli importi (e il CoGe, dove era da confermare).
+        </p>
+      }
+
       <form [formGroup]="form" class="src-form">
 
         <!-- ── Tipo di piano ── -->
@@ -373,6 +417,19 @@
             Prima scadenza: giorno {{ form.get('giornoDelMese')?.value || '?' }} del mese selezionato
           </span>
         </div>
+
+        <!-- ── Riconoscimento in estratto conto (match strutturato dell'import) ── -->
+        <mat-form-field appearance="outline" class="src-field src-field--full">
+          <mat-label>Come si riconosce in banca (opzionale)</mat-label>
+          <input matInput formControlName="riferimentoEstrattoConto" appInputFilter="safe-text"
+                 maxlength="120"
+                 placeholder="es. 2C1071113500569T oppure TELEPASS S.P.A.">
+          <mat-icon matPrefix class="src-field-icon">manage_search</mat-icon>
+          <mat-hint>
+            Copia dall'estratto conto il codice mandato SDD o il nome del creditore: l'import
+            userà questo testo per proporti da solo la rata giusta. Se lo lasci vuoto usa il nome del piano.
+          </mat-hint>
+        </mat-form-field>
 
         <!-- ── Note ── -->
         <mat-form-field appearance="outline" class="src-field src-field--full">

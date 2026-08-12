@@ -11,10 +11,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MovimentiService } from '../../core/services/movimenti.service';
 import { ImportLogDTO } from '../../core/models/movimenti.models';
 import { PagedResponse } from '../../core/models/shared.models';
-import { AmbiguitaReviewDialogComponent } from '../movimenti/ambiguita-review-dialog.component';
 import { ImportCountsService } from './import-counts.service';
 
-/** Sezione "Storico": elenco import passati con contatori, revisione ambiguità e rollback. */
+/** Sezione "Storico": elenco import passati con contatori e rollback. */
 @Component({
   selector: 'app-import-storico',
   standalone: true,
@@ -36,6 +35,12 @@ export class ImportStoricoComponent implements OnInit {
   result = signal<PagedResponse<ImportLogDTO> | null>(null);
   loading = signal(true);
   rollingBack = signal<string | null>(null);
+  /**
+   * Caricamento fallito, distinto da «nessun import effettuato»: senza, una richiesta andata
+   * male mostrava «Nessun import effettuato» a chi gli import li ha fatti. Lo snackbar dura
+   * 3 secondi, la frase falsa resta a schermo.
+   */
+  caricamentoFallito = signal(false);
 
   private page = 0;
   private size = 15;
@@ -44,9 +49,14 @@ export class ImportStoricoComponent implements OnInit {
 
   load(): void {
     this.loading.set(true);
+    this.caricamentoFallito.set(false);
     this.movimentiService.getImportHistory(undefined, this.page, this.size).subscribe({
       next: res => { this.result.set(res); this.loading.set(false); },
-      error: () => { this.loading.set(false); this.snackBar.open('Errore nel caricamento dello storico', 'OK', { duration: 3000 }); },
+      error: () => {
+        this.loading.set(false);
+        this.caricamentoFallito.set(true);
+        this.snackBar.open('Errore nel caricamento dello storico', 'OK', { duration: 3000 });
+      },
     });
   }
 
@@ -56,10 +66,9 @@ export class ImportStoricoComponent implements OnInit {
     return Math.max(0, (log.righeAmbigue ?? 0) - (log.righeAmbigueClassificate ?? 0));
   }
 
-  apriRevisione(log: ImportLogDTO): void {
-    this.dialog.open(AmbiguitaReviewDialogComponent, { data: { importLogId: log.id }, width: '900px', maxHeight: '90vh' })
-      .afterClosed().subscribe(classified => { if (classified) { this.load(); this.counts.reload(); } });
-  }
+  // La revisione delle ambiguità non ha più una UI (audit §7.7): 0 righe su 2 import, non
+  // meritava una schermata. La tabella `import_ambiguita` e i suoi endpoint restano intatti —
+  // se un giorno la coda si riempie, il contatore «pend.» qui accanto lo mostra.
 
   rollback(log: ImportLogDTO): void {
     const ok = window.confirm(
@@ -77,7 +86,8 @@ export class ImportStoricoComponent implements OnInit {
     return ({ COMPLETATO: '#2E7D32', COMPLETATO_CON_AMBIGUITA: '#E65100', ERRORE: '#C62828', IN_CORSO: '#2C6E8F' } as Record<string, string>)[s] ?? '#6B7280';
   }
   statoLabel(s: string): string {
-    return ({ COMPLETATO: 'Completato', COMPLETATO_CON_AMBIGUITA: 'Con ambiguità', ERRORE: 'Errore', IN_CORSO: 'In corso' } as Record<string, string>)[s] ?? s;
+    // "Da verificare" e non "Con ambiguità": lo stato ora copre anche le righe fuori dai conti (§7.4 n.3).
+    return ({ COMPLETATO: 'Completato', COMPLETATO_CON_AMBIGUITA: 'Da verificare', ERRORE: 'Errore', IN_CORSO: 'In corso' } as Record<string, string>)[s] ?? s;
   }
   fonteLabel(f: string): string {
     return ({ IMPORT_BILLY: 'Billy', IMPORT_BANCA: 'Banca', IMPORT_CONGIUNTO: 'Congiunto' } as Record<string, string>)[f] ?? f;

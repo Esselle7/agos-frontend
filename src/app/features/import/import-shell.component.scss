@@ -33,6 +33,34 @@
     display: inline-flex; align-items: center; justify-content: center; padding: 0 .35rem; border-radius: 999px;
   }
   .active &__badge, &__nav-item.active &__badge { background: var(--info-d); }
+  // Denaro fuori dai conti: si distingue a colpo d'occhio dalle code di lavorazione (audit §7.4).
+  &__badge--rosso, .active &__badge--rosso, &__nav-item.active &__badge--rosso { background: var(--danger); }
 
   &__content { flex: 1; min-width: 0; overflow-y: auto; padding: 1.5rem; }
+
+  // ── Stretto: il rail verticale non ci sta ──────────────────────────────────
+  // A 393px i 220px del rail lasciano 173px al contenuto. Sotto la stessa soglia con cui
+  // l'app-shell fa diventare overlay la sua sidenav (768px, app-shell.component.ts#isMobile)
+  // la nav si corica: barra orizzontale scorrevole sopra il contenuto. Niente stato da
+  // aprire/chiudere ⇒ nessun ARIA da mantenere, ordine di tabulazione e markup invariati.
+  @media (max-width: 768px) {
+    &__body { flex-direction: column; }
+
+    &__nav {
+      width: auto; flex: none;
+      display: flex; align-items: center; gap: .35rem;
+      padding: .5rem .75rem;
+      overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+      scrollbar-width: thin;
+      border-right: 0; border-bottom: 1px solid var(--border-soft);
+    }
+    &__nav-group { flex: none; flex-direction: row; align-items: center; gap: .35rem; }
+    // Il titolo "Smistamento" in linea ruberebbe mezzo schermo: resta come stacco verticale.
+    &__nav-sep { display: none; }
+    &__nav-group + &__nav-group { border-left: 1px solid var(--border); padding-left: .6rem; margin-left: .25rem; }
+
+    &__nav-item { flex: none; min-height: 44px; white-space: nowrap; scroll-margin-inline: .75rem; }
+
+    &__content { min-height: 0; padding: 1rem; }
+  }
 }

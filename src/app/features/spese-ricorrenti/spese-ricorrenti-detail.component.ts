@@ -12,8 +12,10 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { SpeseRicorrentiService } from '../../core/services/spese-ricorrenti.service';
 import { PlanDetailDTO, InstallmentDTO } from './spese-ricorrenti.models';
+import { ContoBancarioDTO } from '../../core/models/anagrafica.models';
 import { EuroPipe } from '../../shared/pipes/euro.pipe';
 import { HelpNoteComponent } from '../../shared/components/help-note/help-note.component';
 
@@ -24,7 +26,7 @@ import { HelpNoteComponent } from '../../shared/components/help-note/help-note.c
     CommonModule, FormsModule,
     MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatChipsModule,
     MatTooltipModule, MatDialogModule, MatMenuModule, MatDividerModule,
-    MatFormFieldModule, MatInputModule,
+    MatFormFieldModule, MatInputModule, MatSelectModule,
     DatePipe, EuroPipe, HelpNoteComponent,
   ],
   templateUrl: './spese-ricorrenti-detail.component.html',
@@ -62,6 +64,15 @@ export class SpeseRicorrentiDetailComponent implements OnInit {
 
   showPurge     = signal(false);
   purgeError    = signal<string | null>(null);
+
+  // ── Modifica piano: anagrafica + riconoscimento nell'import (mai gli importi) ──
+  showEdit      = signal(false);
+  editError     = signal<string | null>(null);
+  contiBancari  = signal<ContoBancarioDTO[]>([]);
+  pianoDescrizione = '';
+  pianoContoBancarioId: number | null = null;
+  pianoRiferimento = '';
+  pianoNote = '';
 
   private planId!: string;
 
@@ -155,6 +166,42 @@ export class SpeseRicorrentiDetailComponent implements OnInit {
     this.service.cancelPlan(this.planId, this.cancelPenale, this.cancelNote).subscribe({
       next: () => { this.showCancel.set(false); this.load(); },
       error: () => this.working.set(false),
+    });
+  }
+
+  // ── Modifica piano ────────────────────────────────────────────────────────
+
+  openEdit(): void {
+    const p = this.plan();
+    if (!p) return;
+    this.pianoDescrizione = p.descrizione;
+    this.pianoContoBancarioId = p.contoBancarioId;
+    this.pianoRiferimento = p.riferimentoEstrattoConto ?? '';
+    this.pianoNote = p.note ?? '';
+    this.editError.set(null);
+    if (!this.contiBancari().length) {
+      this.service.getContiBancari().subscribe({ next: c => this.contiBancari.set(c), error: () => {} });
+    }
+    this.showEdit.set(true);
+  }
+
+  confirmEdit(): void {
+    if (!this.pianoDescrizione.trim() || this.pianoContoBancarioId == null) {
+      this.editError.set('Servono almeno il nome del piano e il conto bancario.');
+      return;
+    }
+    this.working.set(true);
+    this.service.updatePlan(this.planId, {
+      descrizione: this.pianoDescrizione.trim(),
+      contoBancarioId: this.pianoContoBancarioId,
+      riferimentoEstrattoConto: this.pianoRiferimento.trim() || null,
+      note: this.pianoNote.trim() || null,
+    }).subscribe({
+      next: () => { this.showEdit.set(false); this.load(); },
+      error: err => {
+        this.working.set(false);
+        this.editError.set(err?.error?.message ?? 'Modifica non riuscita');
+      },
     });
   }
 
