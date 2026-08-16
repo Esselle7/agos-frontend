@@ -74,6 +74,13 @@ const CASI = [
     bugia: /Esegui un import congiunto/i,
     successo: '.q__grid, table',
     attesa: '.rep-tabs',
+    // Il pannello vive nel SECONDO tab di Report: mat-tab-group crea il contenuto ma lo tiene
+    // nascosto finché il tab non è selezionato, quindi senza questo click il bottone «Riprova»
+    // c'è nel DOM e non è visibile — e il test misurava l'assenza di un tab aperto, non l'errore.
+    tab: 'Quadratura POS',
+    // Fuori dall'Import il contenitore `.imp__content` non esiste: qui la pagina è Report, e
+    // `.rep-tab-content` c'è una volta per tab (2 nodi → strict mode). Il pannello è uno solo.
+    contenitore: 'app-quadratura-panel',
   },
 ];
 
@@ -83,13 +90,14 @@ for (const c of CASI) {
 
     await page.goto(c.rotta);
     await page.locator(c.attesa ?? '.imp__nav').waitFor({ state: 'visible' });
+    if (c.tab) await page.getByRole('tab', { name: c.tab }).click();
 
     // 1. lo stato d'errore c'è, con il suo bottone
     const riprova = page.getByRole('button', { name: /riprova/i });
     await expect(riprova, `${c.nome}: manca lo stato d'errore con «Riprova»`).toBeVisible({ timeout: 10_000 });
 
     // 2. e soprattutto: NON dice all'utente di andare a importare
-    await expect(page.locator('.imp__content'), `${c.nome}: mostra un empty state falso`)
+    await expect(page.locator(c.contenitore ?? '.imp__content'), `${c.nome}: mostra un empty state falso`)
       .not.toHaveText(c.bugia);
 
     // 3. «Riprova» ricarica davvero: tolto il guasto la pagina si popola

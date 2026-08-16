@@ -11,6 +11,7 @@ import {
   ImportLogDTO,
   AmbiguitaDTO,
   ClassificaAmbiguitaRequest,
+  ImportBadgeDTO,
   ImportKpiDTO,
   RegolaClassificazioneDTO,
   TransitorioDTO,
@@ -21,7 +22,6 @@ import {
   KeywordFirmaDTO,
   KeywordConflittoDTO,
   RisolviConflittoKeywordRequest,
-  KeywordAnteprimaDTO,
   RicorrenteParcheggiataDTO,
   RisolviRicorrenteRequest,
   ScartatoDTO,
@@ -30,6 +30,10 @@ import {
   MatchingDifferitoDTO,
   RisolviMatchingDifferitoRequest,
   BuPanelDTO,
+  ContatoreImportDTO,
+  RigaImportDTO,
+  RegistroImportDTO,
+  SpostaRigaRequest,
 } from '../models/movimenti.models';
 import { PagedResponse, MovimentoDTOShared } from '../models/shared.models';
 import { API_PATHS } from '../constants/api-paths';
@@ -243,6 +247,11 @@ export class MovimentiService {
     return this.http.get<ImportKpiDTO>(environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_KPI);
   }
 
+  /** I contatori dei badge + l'id dell'ultimo import: sostituisce 6 liste con size=1 e /history. */
+  getImportBadge(): Observable<ImportBadgeDTO> {
+    return this.http.get<ImportBadgeDTO>(environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_BADGE);
+  }
+
   getRegole(): Observable<RegolaClassificazioneDTO[]> {
     return this.http.get<RegolaClassificazioneDTO[]>(
       environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_REGOLE
@@ -327,6 +336,38 @@ export class MovimentiService {
   risolviScartato(id: string, req: RisolviScartatoRequest): Observable<void> {
     return this.http.put<void>(
       environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_SCARTATO_RISOLVI(id), req);
+  }
+
+  /**
+   * Rimanda una riga del transitorio alla coda giusta. Il movimento sparisce e il suo importo
+   * esce dai saldi finché la coda non lo risolve: lo stesso trattamento delle righe che l'import
+   * parcheggia da solo.
+   */
+  spostaInCoda(movimentoId: string, req: SpostaRigaRequest): Observable<void> {
+    return this.http.put<void>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_TRANSITORIO_SPOSTA(movimentoId), req);
+  }
+
+  // ── Contatore e registro dell'import (SPEC import-v2 §5/§6) ─────────────────
+
+  /** Quanto è uscito dalle banche e dove si trova adesso, al centesimo e per direzione. */
+  getContatoreImport(importLogId: string): Observable<ContatoreImportDTO> {
+    return this.http.get<ContatoreImportDTO>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_CONTATORE(importLogId));
+  }
+
+  /** Il registro: tutte le righe bancarie dell'import, con stato, filtri e ricerca. */
+  getRigheImport(importLogId: string, f: {
+    stato?: string; conto?: number; da?: string; a?: string; q?: string;
+  } = {}, page = 0, size = 50): Observable<RegistroImportDTO> {
+    let params = new HttpParams().set('page', page).set('size', size);
+    if (f.stato) params = params.set('stato', f.stato);
+    if (f.conto != null) params = params.set('conto', f.conto);
+    if (f.da) params = params.set('da', f.da);
+    if (f.a) params = params.set('a', f.a);
+    if (f.q) params = params.set('q', f.q);
+    return this.http.get<RegistroImportDTO>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_RIGHE(importLogId), { params });
   }
 
   /** Rami storicamente usati per ogni conto: il wizard chiede la BU solo se ce n'è più d'uno. */
@@ -445,10 +486,8 @@ export class MovimentiService {
     );
   }
 
-  /** Anteprima delle keyword che verrebbero apprese da una descrizione (per il triage). */
-  anteprimaKeyword(descrizione: string, sorgente?: string): Observable<KeywordAnteprimaDTO> {
-    return this.http.post<KeywordAnteprimaDTO>(
-      environment.apiBaseUrl + API_PATHS.MOVIMENTI.KEYWORD_ANTEPRIMA, { descrizione, sorgente: sorgente ?? null }
-    );
-  }
+  // `anteprimaKeyword()` è stata rimossa il 13/08/2026: era morta da quando il wizard ha sostituito
+  // il vecchio dialog di triage, e l'anteprima ora viaggia dentro TransitorioDTO.firmeDaImparare —
+  // stessa estrazione del server, zero round-trip per riga. L'endpoint /keyword/anteprima resta
+  // vivo lato server.
 }

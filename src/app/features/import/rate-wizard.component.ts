@@ -13,6 +13,7 @@ import { RicorrenteParcheggiataDTO, CandidatoRataDTO } from '../../core/models/m
 import { PianoContiCogeDTO } from '../../core/models/anagrafica.models';
 import { CogePickerComponent } from '../../shared/components/coge-picker/coge-picker.component';
 import { HelpNoteComponent } from '../../shared/components/help-note/help-note.component';
+import { IndiceCodaComponent, VoceCoda } from '../../shared/components/indice-coda/indice-coda.component';
 import { ImportCountsService } from './import-counts.service';
 
 /**
@@ -30,7 +31,7 @@ import { ImportCountsService } from './import-counts.service';
   imports: [
     CurrencyPipe, DatePipe, RouterLink,
     MatButtonModule, MatIconModule, MatProgressSpinnerModule,
-    CogePickerComponent, HelpNoteComponent,
+    CogePickerComponent, HelpNoteComponent, IndiceCodaComponent,
   ],
   template: `
     <div class="wz">
@@ -65,6 +66,12 @@ import { ImportCountsService } from './import-counts.service';
           </div>
         </header>
 
+        <!-- Indice sempre visibile: si salta a QUALSIASI rata, non solo alla prossima. -->
+        <agos-indice-coda class="wz__indice" titolo="Tutte le rate"
+                          [voci]="vociIndice()" [correnteId]="r.id"
+                          (vai)="vaA($event)"></agos-indice-coda>
+
+        <div class="wz__col wz__col--ctx">
         <section class="wz__spesa">
           <p class="wz__frase">
             {{ r.tipo === 'USCITA' ? 'È uscita una rata di' : 'È entrata un\\'erogazione di' }}
@@ -76,8 +83,12 @@ import { ImportCountsService } from './import-counts.service';
           </p>
           <p class="wz__causale">«{{ r.descrizione }}»</p>
         </section>
+        </div>
+
+        <div class="wz__col wz__col--dec">
 
         @if (r.tipo === 'USCITA') {
+
           <section class="wz__scelta" aria-labelledby="wz-quale">
             <h3 id="wz-quale">Di quale finanziamento è?</h3>
 
@@ -211,13 +222,23 @@ import { ImportCountsService } from './import-counts.service';
           </section>
         }
 
+        <!-- R9: mettere da parte una riga bancaria richiede un motivo SCRITTO. -->
+        <label class="wz__motivo">
+          <span>Se non è una rata, perché?</span>
+          <input type="text" [value]="motivo()" (input)="motivo.set($any($event.target).value)"
+                 placeholder="es. è un pagamento una tantum, non un piano"
+                 aria-describedby="wz-motivo-aiuto">
+          <small id="wz-motivo-aiuto">Resta scritto sulla riga: serve per poterla mettere da parte.</small>
+        </label>
+
         <div class="wz__azioni wz__azioni--vuote">
-          <button mat-stroked-button [disabled]="salvando()" (click)="ignora(r)">
+          <button mat-stroked-button [disabled]="salvando() || !motivoValido()" (click)="ignora(r)">
             <mat-icon>block</mat-icon> Non è una rata, mettila da parte
           </button>
           <button mat-stroked-button [disabled]="salvando()" (click)="rimanda()">
             <mat-icon>schedule</mat-icon> Non lo so, lascia in sospeso
           </button>
+        </div>
         </div>
 
         <agos-help-note tono="tip" titolo="Perché queste rate sono qui" [collapsed]="true">
@@ -231,7 +252,31 @@ import { ImportCountsService } from './import-counts.service';
     </div>
   `,
   styles: [`
-    .wz { padding: 16px; display: flex; flex-direction: column; gap: 20px; max-width: 720px; }
+    .wz { padding: 16px; display: flex; flex-direction: column; gap: 20px; max-width: 860px; }
+
+    /* Due colonne quando lo schermo le regge: a sinistra COSA sto guardando, a destra COSA
+       decido. È la stessa riga di prima, ma senza doverla scorrere per arrivare alla risposta —
+       e il contesto resta sotto gli occhi mentre si sceglie (sticky). Sotto la soglia tornano
+       impilate nello stesso ordine di lettura. */
+    .wz__col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+    /* 1280 e non 1080: il rail di nav toglie 220px, quindi a 1080 di viewport il
+       contenuto sarebbe 620 e due colonne verrebbero strette come un telefono. */
+    /* L'indice entra come TERZA colonna solo da 1500 in su: sotto quella soglia toglierebbe
+       spazio alla colonna che decide, quindi si impila sopra al contesto — sempre visibile,
+       ma senza rubare larghezza. */
+    @media (min-width: 1280px) {
+      .wz { max-width: 1320px; display: grid; align-items: start; column-gap: 28px;
+        grid-template-columns: minmax(300px, .85fr) minmax(380px, 1fr); }
+      .wz__head, .wz__indice, .wz > agos-help-note { grid-column: 1 / -1; }
+      .wz__col--ctx { position: sticky; top: 0; }
+    }
+    @media (min-width: 1500px) {
+      .wz { max-width: 1560px; column-gap: 24px;
+        grid-template-columns: minmax(220px, .5fr) minmax(300px, .8fr) minmax(380px, 1fr); }
+      .wz__head, .wz > agos-help-note { grid-column: 1 / -1; }
+      .wz__indice { grid-column: auto; position: sticky; top: 0; }
+    }
 
     .wz__center, .wz__stato { display: flex; flex-direction: column; align-items: center;
       gap: 12px; padding: 56px 24px; color: var(--text-sub); text-align: center; }
@@ -289,6 +334,13 @@ import { ImportCountsService } from './import-counts.service';
     .wz__effetto mat-icon { color: var(--success); font-size: 19px; width: 19px; height: 19px;
       flex-shrink: 0; margin-top: 2px; }
 
+    .wz__motivo { display: flex; flex-direction: column; gap: 3px; max-width: 460px; margin-bottom: 12px; }
+    .wz__motivo > span { font-size: .84rem; font-weight: 600; color: var(--text-main); }
+    .wz__motivo input { padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); background: var(--card); font: inherit;
+      font-size: .9rem; color: var(--text-main); }
+    .wz__motivo input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+    .wz__motivo small { font-size: .76rem; color: var(--text-sub); }
     .wz__azioni { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .wz__azioni--vuote { padding-top: 4px; }
     .wz__hint { font-size: .8rem; color: var(--text-faint); }
@@ -311,13 +363,54 @@ export class RateWizardComponent implements OnInit {
   readonly righe = signal<RicorrenteParcheggiataDTO[]>([]);
   readonly piani = signal<{ id: string; stato: string }[]>([]);
   readonly indice = signal(0);
-  readonly rimandate = signal(0);
+
+  /** Id delle rate messe in sospeso: l'indice deve dire QUALI, non solo quante. */
+  private readonly idRimandate = signal<ReadonlySet<string>>(new Set<string>());
+  readonly rimandate = computed(() => this.idRimandate().size);
+
+  /** Rate chiuse in questa sessione: escono dalla coda ma restano nell'indice, spente. */
+  private readonly svolte = signal<{ id: string; titolo: string; dettaglio: string }[]>([]);
 
   readonly candidatoScelto = signal<CandidatoRataDTO | null>(null);
   readonly registraSenzaPiano = signal(false);
   readonly cogeScelto = signal<number | null>(null);
 
   readonly corrente = computed(() => this.righe()[this.indice()] ?? null);
+
+  /**
+   * Le righe tradotte per l'indice condiviso: le da fare in coda, poi le già chiuse.
+   * Signal veri in ingresso — niente letture di `ngModel`, che resterebbero congelate (OnPush).
+   */
+  readonly vociIndice = computed<VoceCoda[]>(() => {
+    const sosp = this.idRimandate();
+    const daFare: VoceCoda[] = this.righe().map(r => ({
+      id: r.id,
+      titolo: this.titoloRata(r),
+      dettaglio: this.dettaglioRata(r),
+      stato: sosp.has(r.id) ? 'rimandata' : 'da-fare',
+    }));
+    return [...daFare, ...this.svolte().map(s => ({ ...s, stato: 'fatta' as const }))];
+  });
+
+  private titoloRata(r: RicorrenteParcheggiataDTO): string {
+    return r.descrizione?.trim() || (r.tipoPresunto ?? 'Rata');
+  }
+
+  private dettaglioRata(r: RicorrenteParcheggiataDTO): string {
+    const imp = r.importo.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+    const gg = r.dataMovimento
+      ? new Date(r.dataMovimento).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
+      : null;
+    return gg ? `${imp} · ${gg}` : imp;
+  }
+
+  /** Salto diretto dall'indice. Cambia SOLO la navigazione: le scelte in corso si azzerano. */
+  vaA(id: string): void {
+    const i = this.righe().findIndex(r => r.id === id);
+    if (i < 0 || i === this.indice()) return;
+    this.indice.set(i);
+    this.azzeraScelta();
+  }
 
   ngOnInit(): void { this.ricarica(); }
 
@@ -332,7 +425,8 @@ export class RateWizardComponent implements OnInit {
         this.righe.set(coda.content);
         this.piani.set(piani.filter(p => p.stato === 'ATTIVO'));
         this.indice.set(0);
-        this.rimandate.set(0);
+        this.idRimandate.set(new Set<string>());
+        this.svolte.set([]);
         this.azzeraScelta();
         this.loading.set(false);
       },
@@ -394,7 +488,8 @@ export class RateWizardComponent implements OnInit {
   }
 
   rimanda(): void {
-    this.rimandate.update(n => n + 1);
+    const r = this.corrente();
+    if (r) this.idRimandate.update(s => new Set(s).add(r.id));
     this.azzeraScelta();
     this.indice.update(i => (i + 1) % Math.max(1, this.righe().length));
   }
@@ -419,9 +514,16 @@ export class RateWizardComponent implements OnInit {
     });
   }
 
+  /** Motivo dell'esclusione (R9): obbligatorio anche lato server, qui è solo cortesia. */
+  readonly motivo = signal('');
+  readonly motivoValido = computed(() => this.motivo().trim().length >= 3);
+
   ignora(r: RicorrenteParcheggiataDTO): void {
+    if (!this.motivoValido()) return;
     this.salvando.set(true);
-    this.movimenti.risolviRicorrente(r.id, { azione: 'IGNORA', cogeId: null, nota: null }).subscribe({
+    this.movimenti.risolviRicorrente(r.id, {
+      azione: 'IGNORA', cogeId: null, nota: this.motivo().trim(),
+    }).subscribe({
       next: () => this.dopoAzione(r, 'Riga messa da parte: nessun saldo è cambiato'),
       error: err => this.fallito(err),
     });
@@ -429,6 +531,12 @@ export class RateWizardComponent implements OnInit {
 
   private dopoAzione(r: RicorrenteParcheggiataDTO, messaggio: string): void {
     this.salvando.set(false);
+    this.svolte.update(l => [...l,
+      { id: r.id, titolo: this.titoloRata(r), dettaglio: this.dettaglioRata(r) }]);
+    this.idRimandate.update(s => {
+      if (!s.has(r.id)) return s;
+      const n = new Set(s); n.delete(r.id); return n;
+    });
     this.righe.update(list => list.filter(x => x.id !== r.id));
     if (this.indice() >= this.righe().length) this.indice.set(0);
     this.azzeraScelta();

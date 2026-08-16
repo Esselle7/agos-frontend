@@ -45,17 +45,15 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         data: { roles: ['ADMIN'] },
       },
-      // Cassa temporaneamente disabilitata: rotta rimossa così /cassa ricade nel
-      // redirect wildcard verso /dashboard. Codice del componente mantenuto.
-      // {
-      //   path: 'cassa',
-      //   loadComponent: () =>
-      //     import('./features/cassa/cassa.component').then(
-      //       m => m.CassaComponent
-      //     ),
-      //   canActivate: [roleGuard],
-      //   data: { roles: ['ADMIN'] },
-      // },
+      {
+        path: 'contanti',
+        loadComponent: () =>
+          import('./features/contanti/contanti.component').then(
+            m => m.ContantiComponent
+          ),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMIN'] },
+      },
       {
         path: 'spese-ricorrenti',
         loadChildren: () =>

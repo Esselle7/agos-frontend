@@ -9,6 +9,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MovimentiService } from '../../core/services/movimenti.service';
 import { EtlImportResponse, FonteImport } from '../../core/models/movimenti.models';
 import { ImportCountsService } from './import-counts.service';
+import { PassiImportComponent } from './passi-import.component';
 
 interface SlotDef { key: FonteImport; label: string; hint: string; accept: string; }
 
@@ -20,7 +21,8 @@ interface SlotDef { key: FonteImport; label: string; hint: string; accept: strin
   selector: 'app-import-bulk',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatDividerModule, MatExpansionModule],
+  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatDividerModule,
+            MatExpansionModule, PassiImportComponent],
   templateUrl: './import-bulk.component.html',
   styleUrls: ['./import-bulk.component.scss'],
 })

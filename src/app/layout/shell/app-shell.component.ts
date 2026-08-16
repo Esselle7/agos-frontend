@@ -71,8 +71,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Movimenti',           icon: 'receipt_long',            route: '/movimenti',        adminOnly: true },
       { label: 'Import & smistamento', icon: 'move_to_inbox',           route: '/import',           adminOnly: true },
-      // Cassa temporaneamente disabilitata (nascosta da nav + rotte); codice mantenuto.
-      // { label: 'Cassa',               icon: 'account_balance_wallet',  route: '/cassa',            adminOnly: true },
+      { label: 'Contanti',            icon: 'account_balance_wallet',  route: '/contanti',         adminOnly: true },
       { label: 'Spese ricorrenti',    icon: 'event_repeat',            route: '/spese-ricorrenti', adminOnly: true },
       { label: 'Libro cespiti',       icon: 'inventory_2',             route: '/libro-cespiti',    adminOnly: true },
     ],

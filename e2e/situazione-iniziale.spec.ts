@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { createSign } from 'crypto';
-import { execSync } from 'child_process';
+import { psql } from './db';
 import * as path from 'path';
 
 // ── Bypass login: conia un JWT RS256 con la chiave dev del backend ────────────
@@ -185,7 +185,7 @@ test.describe('Situazione iniziale', () => {
     // (2) controllo dell'ESITO: il P&L dell'anno in corso non si muove.
     //     Le MV si rinfrescano dopo il commit in modo asincrono → forzo il refresh, altrimenti
     //     leggerei un valore vecchio e il test passerebbe anche col bug (successo falso).
-    execSync(`docker exec -e PGPASSWORD=agos agos-postgres psql -U agos -d agosdb -c "SELECT fn_refresh_all_mv()"`, { stdio: 'ignore' });
+    psql('SELECT fn_refresh_all_mv()');
     expect(await plRicavi()).toBeCloseTo(prima, 2);
 
     await page.locator('.row', { hasText: CREDITO_DESC }).locator('.ico--danger').click();
@@ -211,7 +211,6 @@ test.describe('Situazione iniziale', () => {
 
   test.afterAll(() => {
     // la categoria creata è un conto COGE reale: pulizia diretta su DB
-    execSync(`docker exec -e PGPASSWORD=agos agos-postgres psql -U agos -d agosdb -c "DELETE FROM piano_dei_conti_coge WHERE descrizione LIKE 'ZZ E2E%'"`,
-      { stdio: 'ignore' });
+    psql("DELETE FROM piano_dei_conti_coge WHERE descrizione LIKE 'ZZ E2E%'");
   });
 });

@@ -50,10 +50,14 @@ const PAGINE: { slug: string; route: string; voce: string }[] = [
   { slug: '06-rate',                 route: '/import/rate',                            voce: 'Rate' },
   { slug: '08-matching-differiti',   route: '/import/smistamento/matching-differiti',  voce: 'Già a libro' },
   { slug: '09-duplicati',            route: '/import/smistamento/duplicati',           voce: 'Duplicati' },
+  // Pagine della SPEC import-v2: il registro (R21) e la chiusura (R23) hanno le stesse
+  // pretese responsive delle altre — una tabella larga è il primo posto dove scappa l'overflow.
+  { slug: '10-registro',             route: '/import/registro',                        voce: 'Registro' },
+  { slug: '11-fatto',                route: '/import/fatto',                           voce: 'Fatto' },
 ];
 
 /** Pagine di cui si salva la prova visiva (le altre sono coperte dalle misure). */
-const CON_SCREENSHOT = new Set(['01-bulk', '03-catalogare']);
+const CON_SCREENSHOT = new Set(['01-bulk', '03-catalogare', '10-registro', '11-fatto']);
 
 const FASE = process.env['SHOT_PHASE'] ?? 'dopo';
 const DIR_SHOT = path.resolve(__dirname, '../../docs/screenshots/import-shell', FASE);
