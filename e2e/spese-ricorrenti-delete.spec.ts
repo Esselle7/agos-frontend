@@ -1,7 +1,7 @@
 import { test, expect, Page, APIRequestContext } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { createSign } from 'crypto';
-import { execSync } from 'child_process';
+import { psql } from './db';
 import * as path from 'path';
 
 // ── Bypass login: stesso pattern di piano-conti.spec.ts ──────────────────────
@@ -70,8 +70,7 @@ function cleanup(): void {
   const sql =
     `DELETE FROM recurring_expense_plan WHERE descrizione LIKE '${MARKER}%'; ` +
     `DELETE FROM movimenti WHERE descrizione LIKE '${MARKER}%';`;
-  execSync(`docker exec -e PGPASSWORD=agos agos-postgres psql -U agos -d agosdb -c "${sql}"`,
-    { stdio: 'inherit' });
+  psql(sql, 'inherit');
 }
 
 test.describe('Spese ricorrenti — eliminazione definitiva piano', () => {

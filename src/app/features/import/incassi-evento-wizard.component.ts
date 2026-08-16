@@ -12,7 +12,7 @@ import { forkJoin } from 'rxjs';
 import { MovimentiService } from '../../core/services/movimenti.service';
 import { EventiService } from '../../core/services/eventi.service';
 import { EventoParcheggiatoDTO } from '../../core/models/movimenti.models';
-import { EventoDTO, TipoPagamentoEvento, TIPI_PAGAMENTO_EVENTO } from '../../core/models/eventi.models';
+import { EventoDTO, PagamentoEventoDTO, TipoPagamentoEvento, TIPI_PAGAMENTO_EVENTO } from '../../core/models/eventi.models';
 import { HelpNoteComponent } from '../../shared/components/help-note/help-note.component';
 import { ImportCountsService } from './import-counts.service';
 
@@ -75,6 +75,46 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
           </div>
         </header>
 
+        <!-- Indice sempre visibile: si salta a QUALSIASI riga, non solo alla prossima. Senza,
+             per tornare su una riga già vista bisognava ricominciare da capo e scorrerle tutte. -->
+        <nav class="wz__indice" aria-label="Elenco degli incassi da attribuire">
+          <p class="wz__indice-tit">Tutti gli incassi</p>
+          <ol class="wz__indice-lista">
+            @for (x of righe(); track x.id; let i = $index) {
+              <li>
+                <button type="button" class="wz__ivoce"
+                        [class.wz__ivoce--ora]="i === indice()"
+                        [class.wz__ivoce--sosp]="rimandate().has(x.id)"
+                        [attr.aria-current]="i === indice() ? 'true' : null"
+                        (click)="vaA(i)">
+                  <span class="wz__inum">{{ i + 1 }}</span>
+                  <span class="wz__itxt">
+                    <b>{{ x.controparteNome || 'Senza intestatario' }}</b>
+                    <small>
+                      {{ x.importo | currency:'EUR' }}
+                      @if (x.dataMovimento) { · {{ x.dataMovimento | date:'d MMM' }} }
+                      @if (rimandate().has(x.id)) { · in sospeso }
+                      @if (x.gemelloInseritoIl) { · <span class="wz__idup">già a libro</span> }
+                    </small>
+                  </span>
+                </button>
+              </li>
+            }
+            @for (f of svolte(); track f.id) {
+              <li>
+                <span class="wz__ivoce wz__ivoce--fatta">
+                  <mat-icon class="wz__ifatta">check</mat-icon>
+                  <span class="wz__itxt">
+                    <b>{{ f.nome }}</b>
+                    <small>{{ f.importo | currency:'EUR' }} · fatta</small>
+                  </span>
+                </span>
+              </li>
+            }
+          </ol>
+        </nav>
+
+        <div class="wz__col wz__col--ctx">
         <section class="wz__spesa">
           <p class="wz__frase">Sono arrivati <b class="wz__cifra">{{ r.importo | currency:'EUR' }}</b> da</p>
           <p class="wz__chi">{{ r.controparteNome || 'Intestatario non indicato' }}</p>
@@ -82,6 +122,18 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
             @if (r.dataMovimento) { il {{ r.dataMovimento | date:'d MMMM yyyy' }} }
             {{ conto(r) }}
           </p>
+          @if (r.gemelloInseritoIl) {
+            <!-- C2: si dice PRIMA di scegliere l'evento, non dopo il rifiuto del server.
+                 C3: è un avviso, non un blocco — la conferma resta possibile. -->
+            <p class="wz__gia-libro">
+              <mat-icon>content_copy</mat-icon>
+              <span>Un incasso uguale — stesso importo, stesso giorno, stessa banca — è già a libro
+                @if (r.gemelloEventoNome) { su <b>{{ r.gemelloEventoNome }}</b> }
+                (inserito il {{ r.gemelloInseritoIl | date:'d MMMM' }}).
+                Se è una seconda tranche vera puoi confermarlo lo stesso; se è lo stesso bonifico,
+                mettilo da parte.</span>
+            </p>
+          }
           @if (r.descrizioneNorm) {
             <p class="wz__causale">Dalla causale ho letto: «{{ r.descrizioneNorm }}»</p>
           }
@@ -92,8 +144,12 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
             </p>
           }
         </section>
+        </div>
+
+        <div class="wz__col wz__col--dec">
 
         @if (r.contoBancarioId) {
+
           <section class="wz__scelta" aria-labelledby="wz-quale">
             <h3 id="wz-quale">Di quale evento è?</h3>
 
@@ -144,6 +200,30 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
             </button>
           </section>
 
+          <!-- Cosa è GIÀ a libro su questo evento. Il doppione del 14/08/2026 è passato anche
+               perché qui non si vedeva nulla: la guardia del server lo blocca dopo, questa
+               lista lo evita prima. I dati arrivano già dentro EventoDTO.pagamenti — nessuna
+               chiamata in più, nessuna somma rifatta qui. -->
+          @if (pagamentiEsistenti(); as pgs) {
+            <section class="wz__gia" aria-labelledby="wz-gia">
+              <h3 id="wz-gia">Su questo evento risulta già incassato</h3>
+              <ul class="wz__gia-lista">
+                @for (p of pgs; track p.movimentoId) {
+                  <li [class.wz__gia--uguale]="sospettoDoppione(p)">
+                    <span class="wz__gia-tipo">{{ parolaBreve(p.tipo) }}</span>
+                    <span class="wz__gia-imp">{{ p.importo | currency:'EUR' }}</span>
+                    <span class="wz__gia-data">{{ p.dataFinanziaria | date:'d MMM yyyy' }}</span>
+                    @if (sospettoDoppione(p)) {
+                      <span class="wz__gia-tag">
+                        <mat-icon>warning</mat-icon> stesso importo e stessa data di questo
+                      </span>
+                    }
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+
           @if (eventoScelto() || segnaposto()) {
             <section class="wz__ramo" aria-labelledby="wz-tipo">
               <h3 id="wz-tipo">È una caparra, un acconto o il saldo?</h3>
@@ -175,7 +255,7 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
                     <b>«{{ eventoScelto()?.nome ?? 'Da attribuire — ' + (r.controparteNome || 'senza intestatario') }}»</b>
                     come {{ parola(t).toLowerCase() }}@if (competenza(r); as c) {, con competenza {{ c | date:'MMMM yyyy' }}}.
                     <br>
-                    Il saldo del conto <b>non cambia</b>: il denaro è già arrivato.
+                    {{ effetto(r, t) }}
                   </span>
                 </p>
                 <div class="wz__azioni">
@@ -189,13 +269,23 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
           }
         }
 
+        <!-- R9: escludere una riga bancaria richiede un motivo SCRITTO. Un motivo precompilato
+             ("Non è un incasso evento") non dice niente a chi rileggerà fra sei mesi. -->
+        <label class="wz__motivo">
+          <span>Se non è un incasso evento, perché?</span>
+          <input type="text" [value]="motivo()" (input)="motivo.set($any($event.target).value)"
+                 placeholder="es. è il rimborso di un fornitore" aria-describedby="wz-motivo-aiuto">
+          <small id="wz-motivo-aiuto">Resta scritto sulla riga: serve per poterla mettere da parte.</small>
+        </label>
+
         <div class="wz__azioni wz__azioni--vuote">
-          <button mat-stroked-button [disabled]="salvando()" (click)="nonEUnEvento(r)">
+          <button mat-stroked-button [disabled]="salvando() || !motivoValido()" (click)="nonEUnEvento(r)">
             <mat-icon>block</mat-icon> Non è un incasso evento
           </button>
           <button mat-stroked-button [disabled]="salvando()" (click)="rimanda()">
             <mat-icon>schedule</mat-icon> Non lo so, lascia in sospeso
           </button>
+        </div>
         </div>
 
         <agos-help-note tono="tip" titolo="Perché questi incassi sono qui" [collapsed]="true">
@@ -211,7 +301,64 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
     </div>
   `,
   styles: [`
-    .wz { padding: 16px; display: flex; flex-direction: column; gap: 20px; max-width: 720px; }
+    .wz { padding: 16px; display: flex; flex-direction: column; gap: 20px; max-width: 860px; }
+
+    /* Due colonne quando lo schermo le regge: a sinistra COSA sto guardando, a destra COSA
+       decido. È la stessa riga di prima, ma senza doverla scorrere per arrivare alla risposta —
+       e il contesto resta sotto gli occhi mentre si sceglie (sticky). Sotto la soglia tornano
+       impilate nello stesso ordine di lettura. */
+    .wz__col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+    /* 1280 e non 1080: il rail di nav toglie 220px, quindi a 1080 di viewport il
+       contenuto sarebbe 620 e due colonne verrebbero strette come un telefono.
+       L'indice entra come TERZA colonna solo da 1500 in su: sotto quella soglia
+       resterebbe in piedi togliendo spazio alla colonna che decide, quindi si impila
+       sopra al contesto — sempre visibile, ma senza rubare larghezza. */
+    @media (min-width: 1280px) {
+      .wz { max-width: 1320px; display: grid; align-items: start; column-gap: 28px;
+        grid-template-columns: minmax(300px, .85fr) minmax(380px, 1fr); }
+      .wz__head, .wz__indice, .wz > agos-help-note { grid-column: 1 / -1; }
+      .wz__col--ctx { position: sticky; top: 0; }
+    }
+    @media (min-width: 1500px) {
+      .wz { max-width: 1560px; column-gap: 24px;
+        grid-template-columns: minmax(220px, .5fr) minmax(300px, .8fr) minmax(380px, 1fr); }
+      .wz__head, .wz > agos-help-note { grid-column: 1 / -1; }
+      .wz__indice { grid-column: auto; position: sticky; top: 0; }
+    }
+
+    /* L'indice non cresce mai oltre mezzo schermo: con 26 righe in coda una lista intera
+       spingerebbe fuori vista la riga su cui si sta lavorando. */
+    .wz__indice { min-width: 0; }
+    .wz__indice-tit { margin: 0 0 8px; font-size: .8rem; font-weight: 650;
+      text-transform: uppercase; letter-spacing: .04em; color: var(--text-sub); }
+    .wz__indice-lista { list-style: none; margin: 0; padding: 0; display: flex;
+      flex-direction: column; gap: 4px; max-height: min(52vh, 440px); overflow-y: auto;
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+      background: var(--card); padding: 6px; }
+
+    .wz__ivoce { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+      padding: 8px 10px; min-height: 44px; border: 1px solid transparent;
+      border-radius: var(--radius-sm); background: transparent; font: inherit;
+      color: var(--text-main); cursor: pointer;
+      transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+    .wz__ivoce:hover { background: var(--tint-primary); }
+    .wz__ivoce:focus-visible { outline: 2px solid var(--primary); outline-offset: -1px; }
+    .wz__ivoce--ora { border-color: var(--primary); background: var(--tint-primary-strong); }
+    /* Lo stato non è affidato al solo colore: «in sospeso» e «fatta» sono scritti in chiaro. */
+    .wz__ivoce--sosp .wz__inum { background: var(--warning); color: var(--on-accent); }
+    .wz__ivoce--fatta { cursor: default; opacity: .55; }
+    .wz__ivoce--fatta:hover { background: transparent; }
+    .wz__ifatta { color: var(--success); font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
+
+    .wz__inum { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+      display: grid; place-items: center; background: var(--surface-2);
+      font-size: .74rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .wz__ivoce--ora .wz__inum { background: var(--primary); color: var(--on-accent); }
+    .wz__itxt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .wz__itxt b { font-size: .84rem; font-weight: 600; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; }
+    .wz__itxt small { font-size: .74rem; color: var(--text-sub); }
 
     .wz__center, .wz__stato { display: flex; flex-direction: column; align-items: center;
       gap: 12px; padding: 56px 24px; color: var(--text-sub); text-align: center; }
@@ -239,6 +386,14 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
       font-size: .82rem; color: var(--text-sub); overflow-wrap: anywhere; }
     .wz__blocco { margin: 10px 0 0; display: flex; align-items: center; gap: 8px;
       font-size: .9rem; color: var(--warning); }
+    /* Il segnale «già a libro» si vede, ma la ragione è SCRITTA: mai solo il colore. */
+    .wz__gia-libro { margin: 10px 0 0; padding: 9px 11px; display: flex; align-items: flex-start;
+      gap: 8px; font-size: .86rem; line-height: 1.45; color: var(--text-main);
+      background: var(--tint-warning); border: 1px solid var(--warning);
+      border-radius: var(--radius-sm); }
+    .wz__gia-libro mat-icon { font-size: 17px; width: 17px; height: 17px; flex-shrink: 0;
+      margin-top: 2px; color: var(--warning); }
+    .wz__idup { color: var(--warning); font-weight: 600; }
 
     .wz__scelta h3, .wz__ramo h3 { margin: 0 0 12px; font-size: 1.05rem; font-weight: 600; }
     .wz__gruppo-tit { display: flex; align-items: center; gap: 6px; margin: 0 0 8px;
@@ -263,6 +418,22 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
     .wz__voce-txt b { font-size: .95rem; font-weight: 600; }
     .wz__voce-txt small { font-size: .76rem; color: var(--text-sub); }
 
+    /* Ciò che è già a libro sull'evento: si legge PRIMA di confermare. */
+    .wz__gia h3 { margin: 0 0 8px; font-size: .95rem; font-weight: 600; }
+    .wz__gia-lista { list-style: none; margin: 0 0 4px; padding: 0;
+      display: flex; flex-direction: column; gap: 4px; }
+    .wz__gia-lista li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 7px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--card); font-size: .86rem; }
+    .wz__gia-tipo { font-weight: 600; }
+    .wz__gia-imp { font-variant-numeric: tabular-nums; }
+    .wz__gia-data { color: var(--text-sub); }
+    /* Il sospetto doppione si vede, ma la ragione è SCRITTA nel tag: mai solo il colore. */
+    .wz__gia--uguale { border-color: var(--warning); background: var(--tint-warning); }
+    .wz__gia-tag { display: inline-flex; align-items: center; gap: 4px;
+      font-size: .76rem; font-weight: 600; color: var(--warning); }
+    .wz__gia-tag mat-icon { font-size: 15px; width: 15px; height: 15px; }
+
     .wz__nota { margin: 0 0 12px; display: flex; align-items: flex-start; gap: 8px;
       font-size: .86rem; color: var(--text-sub); }
     .wz__nota mat-icon { font-size: 17px; width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; }
@@ -274,6 +445,13 @@ const PAROLE_TIPO: Record<TipoPagamentoEvento, string> = {
     .wz__effetto mat-icon { color: var(--success); font-size: 19px; width: 19px; height: 19px;
       flex-shrink: 0; margin-top: 2px; }
 
+    .wz__motivo { display: flex; flex-direction: column; gap: 3px; max-width: 460px; margin-bottom: 12px; }
+    .wz__motivo > span { font-size: .84rem; font-weight: 600; color: var(--text-main); }
+    .wz__motivo input { padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); background: var(--card); font: inherit;
+      font-size: .9rem; color: var(--text-main); }
+    .wz__motivo input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+    .wz__motivo small { font-size: .76rem; color: var(--text-sub); }
     .wz__azioni { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .wz__azioni--vuote { padding-top: 4px; }
 
@@ -295,7 +473,20 @@ export class IncassiEventoWizardComponent implements OnInit {
   readonly righe = signal<EventoParcheggiatoDTO[]>([]);
   readonly anagrafica = signal<EventoDTO[]>([]);
   readonly indice = signal(0);
-  readonly rimandati = signal(0);
+
+  /**
+   * Id delle righe messe in sospeso con «Non lo so». Prima era un contatore: serve l'insieme
+   * perché l'indice deve poter dire QUALI righe sono in sospeso, non solo quante.
+   */
+  readonly rimandate = signal<ReadonlySet<string>>(new Set<string>());
+  readonly rimandati = computed(() => this.rimandate().size);
+
+  /**
+   * Righe chiuse in questa sessione: escono dalla coda ma restano nell'indice, spente.
+   * Solo per leggerle — riaprirle significherebbe stornare un movimento già nel bilancio
+   * dell'evento, che è del modulo Eventi (SPEC «Fuori scopo»).
+   */
+  readonly svolte = signal<{ id: string; nome: string; importo: number }[]>([]);
 
   readonly eventoScelto = signal<EventoDTO | null>(null);
   readonly segnaposto = signal(false);
@@ -342,7 +533,8 @@ export class IncassiEventoWizardComponent implements OnInit {
         this.righe.set(coda.content);
         this.anagrafica.set(eventi.content);
         this.indice.set(0);
-        this.rimandati.set(0);
+        this.rimandate.set(new Set<string>());
+        this.svolte.set([]);
         this.azzeraScelta();
         this.loading.set(false);
       },
@@ -382,6 +574,88 @@ export class IncassiEventoWizardComponent implements OnInit {
     return this.eventoScelto()?.dataEvento ?? r.dataEventoEstratta ?? r.dataMovimento;
   }
 
+  /**
+   * I pagamenti già a libro sull'evento scelto, così si vede PRIMA di confermare se questo
+   * incasso è già dentro. Arrivano dentro `EventoDTO` (campo `pagamenti`), popolato dal
+   * backend in `buildEventoDTO`: niente chiamata in più. `null` quando non c'è nulla da dire.
+   */
+  readonly pagamentiEsistenti = computed(() => {
+    const p = this.eventoScelto()?.pagamenti?.filter(x => x.stato !== 'ANNULLATO') ?? [];
+    return p.length ? p : null;
+  });
+
+  /**
+   * La riga in lavorazione ha lo stesso importo e la stessa data di un pagamento già a libro:
+   * è esattamente la coppia che il server rifiuta con `PAGAMENTO_DUPLICATO`. Qui si dice prima,
+   * per non far sbattere il titolare contro un rifiuto.
+   */
+  sospettoDoppione(p: PagamentoEventoDTO): boolean {
+    const r = this.corrente();
+    return !!r && p.importo === r.importo && p.dataFinanziaria === r.dataMovimento;
+  }
+
+  /** «Un acconto» → «acconto»: nella lista dei già incassati l'articolo è rumore. */
+  parolaBreve(t: TipoPagamentoEvento): string {
+    return PAROLE_TIPO[t].replace(/^(Una |Un |Il )/, '');
+  }
+
+  /**
+   * Cosa succede all'EVENTO quando si conferma — non al saldo del conto.
+   *
+   * <p>Fino al 14/08/2026 qui c'era «Il saldo del conto non cambia: il denaro è già arrivato».
+   * Era falsa: la conferma <b>crea</b> un movimento (`EventiService.registraPagamento`) e quel
+   * movimento entra nel saldo quando la sua data supera `data_saldo_iniziale` del conto — in
+   * produzione oggi succede. Misura in docs/specs/misure/incassi-evento-verifica-2026-08-14.md.
+   *
+   * <p>Il residuo NON si ricalcola qui: si legge `importoResiduo`, che il backend tiene
+   * aggiornato con `ricalcolaIncassi` sommando TUTTI i pagamenti (più acconti e più caparre
+   * sono legittimi, ADR 003). Rifarne la somma nel componente sarebbe una seconda fonte di
+   * verità che può divergere da quella del server.
+   */
+  effetto(r: EventoParcheggiatoDTO, t: TipoPagamentoEvento): string {
+    const e = this.eventoScelto();
+
+    if (t === 'RIMBORSO') {
+      return 'È denaro che esce: l\'incassato dell\'evento cala di questo importo.';
+    }
+    if (t === 'PENALE') {
+      return 'La penale non copre il preventivo dell\'evento: entra nel suo bilancio, ma non riduce quanto resta da incassare.';
+    }
+
+    // Segnaposto: preventivato = importo, quindi il residuo si azzera per costruzione.
+    if (!e) {
+      return 'L\'incasso resta in un contenitore «Da attribuire» finché non lo sposti sull\'evento vero.';
+    }
+
+    const residuo = e.importoResiduo;
+    if (residuo == null) {
+      return t === 'SALDO'
+        ? 'Con il saldo l\'evento risulterà pagato per intero.'
+        : 'L\'evento risulterà confermato e parzialmente incassato.';
+    }
+
+    const dopo = residuo - r.importo;
+
+    // Chiude il residuo → l'evento si salda da solo (EventiService: CONFERMATO → SALDATO
+    // quando il residuo scende sotto il centesimo). Vale per SALDO come per l'ultimo acconto.
+    if (Math.abs(dopo) < 0.01) {
+      return 'Copre tutto quello che restava: l\'evento risulterà saldato e non accetterà altri pagamenti.';
+    }
+    // Il server rifiuta con IMPORTO_SUPERA_RESIDUO: dirlo prima del click, non dopo.
+    if (dopo < 0) {
+      return `Attenzione: su questo evento restano da incassare ${this.euro(residuo)}, meno di questo pagamento — così com'è verrà rifiutato.`;
+    }
+    // NB: un pagamento marcato «saldo» che non copre il residuo NON chiude l'evento. Il tipo è
+    // un'etichetta, a decidere è la cifra: dirlo qui evita di crederlo chiuso quando non lo è.
+    return t === 'SALDO'
+      ? `Non copre tutto: dopo questo pagamento resteranno da incassare ${this.euro(dopo)}, e l'evento resterà aperto.`
+      : `Dopo questo pagamento resteranno da incassare ${this.euro(dopo)}.`;
+  }
+
+  private euro(n: number): string {
+    return n.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+  }
+
   scegliEvento(e: EventoDTO): void {
     this.eventoScelto.set(e);
     this.segnaposto.set(false);
@@ -412,17 +686,31 @@ export class IncassiEventoWizardComponent implements OnInit {
 
   /** «Non lo so»: la riga resta in coda, si passa alla prossima. Nessuna chiamata al server. */
   rimanda(): void {
-    this.rimandati.update(n => n + 1);
+    const r = this.corrente();
+    if (r) this.rimandate.update(s => new Set(s).add(r.id));
     this.azzeraScelta();
     this.indice.update(i => (i + 1) % Math.max(1, this.righe().length));
   }
 
+  /** Salto diretto a una riga qualsiasi dall'indice. Cambia SOLO la navigazione: le scelte
+   *  in corso si azzerano, così non si porta su un'altra riga un evento scelto per questa. */
+  vaA(i: number): void {
+    if (i === this.indice()) return;
+    this.indice.set(i);
+    this.azzeraScelta();
+  }
+
   /** «Non è un incasso evento»: SCARTA — la riga esce dalla coda senza creare nulla. */
+  /** Motivo dell'esclusione (R9): obbligatorio anche lato server, qui è solo cortesia. */
+  readonly motivo = signal('');
+  readonly motivoValido = computed(() => this.motivo().trim().length >= 3);
+
   nonEUnEvento(r: EventoParcheggiatoDTO): void {
+    if (!this.motivoValido()) return;
     this.salvando.set(true);
     this.movimenti.risolviEvento(r.id, {
       azione: 'SCARTA', cogeId: null, businessUnitId: null, eventoId: null,
-      nota: 'Non è un incasso evento',
+      nota: this.motivo().trim(),
     }).subscribe({
       next: () => this.dopoAzione(r, 'Incasso messo da parte: non entra nel bilancio di nessun evento'),
       error: err => this.fallito(err),
@@ -452,6 +740,13 @@ export class IncassiEventoWizardComponent implements OnInit {
 
   private dopoAzione(r: EventoParcheggiatoDTO, messaggio: string): void {
     this.salvando.set(false);
+    this.svolte.update(l => [...l, {
+      id: r.id, nome: r.controparteNome || 'Senza intestatario', importo: r.importo,
+    }]);
+    this.rimandate.update(s => {
+      if (!s.has(r.id)) return s;
+      const n = new Set(s); n.delete(r.id); return n;
+    });
     this.righe.update(list => list.filter(x => x.id !== r.id));
     if (this.indice() >= this.righe().length) this.indice.set(0);
     this.azzeraScelta();
@@ -464,8 +759,10 @@ export class IncassiEventoWizardComponent implements OnInit {
    * messaggio del server contiene gli importi, la UI ci aggiunge la mossa successiva (SPEC R6).
    */
   private static readonly VIE_DUSCITA: Record<string, string> = {
+    // A2: mai suggerire di allargare il preventivo — su un doppione produce preventivo falso
+    // E ricavo fantasma. Prima si guarda se l'incasso è già a libro.
     IMPORTO_SUPERA_RESIDUO:
-      'Correggi il preventivo dell\'evento (Eventi → voci), oppure metti l\'incasso in un contenitore «Da attribuire».',
+      'Controlla prima i pagamenti già registrati sull\'evento: se questo c\'è già, metti da parte la riga. Se è davvero un incasso in più del pattuito, registra l\'eccedenza come extra a consuntivo sull\'evento; se l\'evento è quello sbagliato, metti l\'incasso in un contenitore «Da attribuire».',
     EVENTO_SALDATO:
       'L\'evento risulta già saldato: riaprilo dalla sua scheda, oppure usa un contenitore «Da attribuire».',
     EVENTO_ANNULLATO:
@@ -480,6 +777,8 @@ export class IncassiEventoWizardComponent implements OnInit {
       'Scegli uno dei tipi ammessi: caparra, acconto, saldo, penale, rimborso.',
     EVENTO_NON_CONTABILIZZABILE:
       'Un incasso-evento non diventa un movimento generico: attribuiscilo a un evento (o a un contenitore «Da attribuire»).',
+    PAGAMENTO_DUPLICATO:
+      'Se è davvero un secondo incasso, controlla data e importo: due pagamenti veri differiscono almeno in uno dei due. Altrimenti metti da parte questa riga.',
   };
 
   private fallito(err: { error?: { message?: string; code?: string } }): void {

@@ -15,6 +15,10 @@
   &__filename { font-size: .78rem; color: var(--info); word-break: break-all; }
   &__actions { display: flex; gap: .75rem; margin-top: 1.5rem; flex-wrap: wrap; }
 
+  // Il pannello dei passi: durante l'attesa sta sotto al bottone, nel consuntivo apre il riepilogo.
+  &__passi { display: block; margin-top: 1.25rem; max-width: 680px; }
+  &__result &__passi { margin-top: 0; margin-bottom: .25rem; }
+
   &__result { display: flex; flex-direction: column; gap: .5rem; max-width: 680px; }
   &__row { display: flex; align-items: center; gap: .6rem; padding: .55rem .8rem; border-radius: 10px; background: var(--surface-sunken); font-size: .92rem;
     mat-icon { color: var(--text-sub); }

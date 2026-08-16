@@ -104,13 +104,26 @@ import { ImportCountsService } from './import-counts.service';
                         (click)="contabilizza(r)">
                   <mat-icon>account_balance</mat-icon> Mettila nei conti
                 </button>
-                <button mat-stroked-button [disabled]="saving() === r.id" (click)="lasciaFuori(r)">
-                  <mat-icon>block</mat-icon> Lasciala fuori (era già contata)
+                <button mat-stroked-button
+                        [disabled]="saving() === r.id || !motivoValido(r.id)"
+                        (click)="lasciaFuori(r)">
+                  <mat-icon>block</mat-icon> Lasciala fuori
                 </button>
                 @if (!cogeSel()[r.id]) {
                   <span class="sc__hint">Scegli la voce per poterla mettere nei conti</span>
                 }
               </div>
+
+              <!-- R9: «escluso di proposito» è una casa, non un secchio muto. Fra sei mesi
+                   nessuno ricorderà perché questo accredito è rimasto fuori dai conti. -->
+              <label class="sc__motivo">
+                <span>Perché la lasci fuori?</span>
+                <input type="text" [value]="motivo()[r.id] ?? ''"
+                       (input)="setMotivo(r.id, $any($event.target).value)"
+                       placeholder="es. già contata col bonifico del 12/07"
+                       [attr.aria-describedby]="'sc-mot-' + r.id">
+                <small [id]="'sc-mot-' + r.id">Serve per poterla lasciare fuori: resta scritto sulla riga.</small>
+              </label>
             }
           </article>
         }
@@ -123,6 +136,13 @@ import { ImportCountsService } from './import-counts.service';
     .sc__empty mat-icon { font-size: 48px; width: 48px; height: 48px; opacity: .4; }
     .sc__empty--ok mat-icon { color: var(--success); opacity: .7; }
     .sc__head h2 { margin: 0; font-size: 1.25rem; }
+    .sc__motivo { display: flex; flex-direction: column; gap: 3px; margin-top: 10px; max-width: 460px; }
+    .sc__motivo > span { font-size: .84rem; font-weight: 600; color: var(--text-main); }
+    .sc__motivo input { padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); background: var(--card); font: inherit;
+      font-size: .9rem; color: var(--text-main); }
+    .sc__motivo input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+    .sc__motivo small { font-size: .76rem; color: var(--text-sub); }
     .sc__sub { margin: 4px 0 0; color: var(--text-sub); font-size: .9rem; }
     .sc__card { border: 1px solid var(--danger); border-left-width: 4px; border-radius: var(--radius-md);
       background: var(--card); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
@@ -167,19 +187,34 @@ export class ScartatiPanelComponent implements OnInit {
     this.cogeSel.update(m => ({ ...m, [id]: conto?.id ?? null }));
   }
 
+  /** Motivo dell'esclusione, per riga (R9). */
+  readonly motivo = signal<Record<string, string>>({});
+
   contabilizza(r: ScartatoDTO): void {
     const cogeId = this.cogeSel()[r.id] ?? null;
     if (cogeId == null) return;   // il server rifiuta comunque: qui è solo cortesia
     this.saving.set(r.id);
-    this.movimenti.risolviScartato(r.id, { azione: 'CONTABILIZZA', cogeId }).subscribe({
+    this.movimenti.risolviScartato(r.id, { azione: 'CONTABILIZZA', cogeId, nota: null }).subscribe({
       next: () => this.dopoAzione(r, 'Riga messa nei conti: il movimento è stato creato'),
       error: err => this.fail(err),
     });
   }
 
+  /** R9: il motivo scritto è obbligatorio anche lato server — qui è solo cortesia. */
+  motivoValido(id: string): boolean {
+    return (this.motivo()[id] ?? '').trim().length >= 3;
+  }
+
+  setMotivo(id: string, testo: string): void {
+    this.motivo.update(m => ({ ...m, [id]: testo }));
+  }
+
   lasciaFuori(r: ScartatoDTO): void {
+    if (!this.motivoValido(r.id)) return;
     this.saving.set(r.id);
-    this.movimenti.risolviScartato(r.id, { azione: 'IGNORA', cogeId: null }).subscribe({
+    this.movimenti.risolviScartato(r.id, {
+      azione: 'IGNORA', cogeId: null, nota: this.motivo()[r.id].trim(),
+    }).subscribe({
       next: () => this.dopoAzione(r, 'Riga lasciata fuori dai conti: nessun saldo è cambiato'),
       error: err => this.fail(err),
     });

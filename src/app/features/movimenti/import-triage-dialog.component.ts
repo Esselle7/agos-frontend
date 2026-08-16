@@ -162,8 +162,10 @@ export class ImportTriageDialogComponent implements OnInit {
    * "supera il residuo da incassare EUR 400,00"), la UI ci aggiunge la mossa successiva.
    */
   private static readonly VIE_DUSCITA: Record<string, string> = {
+    // A2: mai suggerire di allargare il preventivo — su un doppione produce preventivo falso
+    // E ricavo fantasma. Prima si guarda se l'incasso è già a libro.
     IMPORTO_SUPERA_RESIDUO:
-      'Correggi il preventivo dell\'evento (Eventi → voci), oppure attribuisci l\'incasso a un contenitore «Da attribuire» spuntando "Evento non ancora inserito".',
+      'Controlla prima i pagamenti già registrati sull\'evento: se questo c\'è già, metti da parte la riga. Se è davvero un incasso in più del pattuito, registra l\'eccedenza come extra a consuntivo sull\'evento; se l\'evento è quello sbagliato, attribuiscila a un contenitore «Da attribuire» spuntando "Evento non ancora inserito".',
     EVENTO_SALDATO:
       'L\'evento risulta già saldato: riaprilo dalla scheda evento, oppure usa un contenitore «Da attribuire».',
     EVENTO_ANNULLATO:
