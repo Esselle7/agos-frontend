@@ -32,6 +32,10 @@
       <!-- Azioni piano (solo ATTIVO) -->
       @if (isActive()) {
         <div class="srd-header__actions">
+          <button mat-stroked-button (click)="openEdit()"
+                  matTooltip="Cambia nome, conto e testo con cui l'import riconosce l'addebito">
+            <mat-icon>edit</mat-icon> Modifica
+          </button>
           <button mat-stroked-button color="accent" (click)="openLiquidate()" matTooltip="Liquida piano con un'unica rata">
             <mat-icon>payments</mat-icon> Liquida
           </button>
@@ -328,6 +332,50 @@
           <button mat-button (click)="showPurge.set(false)">Indietro</button>
           <button mat-flat-button color="warn" (click)="confirmPurge()" [disabled]="working()">
             <mat-icon>delete_sweep</mat-icon> Cestina definitivamente
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ── Modifica piano: solo anagrafica + riconoscimento ── -->
+    @if (showEdit()) {
+      <div class="srd-overlay" (click)="showEdit.set(false)"></div>
+      <div class="srd-modal">
+        <h3>Modifica piano</h3>
+        <p class="text-sub">
+          Si cambiano il nome, il conto e il testo con cui l'import riconosce l'addebito in estratto
+          conto. <strong>Importi, rate, giorno e CoGe non si toccano da qui</strong>: cambiarli
+          vorrebbe dire rigenerare l'ammortamento su rate che possono essere già pagate.
+        </p>
+        <mat-form-field appearance="outline" class="srd-field">
+          <mat-label>Nome del piano</mat-label>
+          <input matInput [(ngModel)]="pianoDescrizione" maxlength="255" />
+          <mat-hint>È anche un segnale di riconoscimento: usa la parola che compare in banca.</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="srd-field">
+          <mat-label>Conto bancario</mat-label>
+          <mat-select [(ngModel)]="pianoContoBancarioId">
+            @for (c of contiBancari(); track c.id) {
+              <mat-option [value]="c.id">{{ c.nome }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>L'import confronta solo le righe di questo conto.</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="srd-field">
+          <mat-label>Come si riconosce in banca (opzionale)</mat-label>
+          <input matInput [(ngModel)]="pianoRiferimento" maxlength="120"
+                 placeholder="es. 2C1071113500569T oppure TELEPASS S.P.A." />
+          <mat-hint>Mandato SDD o nome del creditore copiato dall'estratto conto.</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="srd-field">
+          <mat-label>Note</mat-label>
+          <input matInput [(ngModel)]="pianoNote" />
+        </mat-form-field>
+        @if (editError(); as e) { <p class="srd-error-inline">{{ e }}</p> }
+        <div class="srd-modal__actions">
+          <button mat-button (click)="showEdit.set(false)">Indietro</button>
+          <button mat-flat-button color="primary" (click)="confirmEdit()" [disabled]="working()">
+            <mat-icon>save</mat-icon> Salva
           </button>
         </div>
       </div>

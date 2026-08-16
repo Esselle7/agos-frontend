@@ -339,6 +339,19 @@
   }
 }
 
+/* Proposta del match strutturato: il caso normale si chiude con un click, senza tendine */
+.triage__ric-proposta {
+  display: flex; flex-direction: column; align-items: flex-start; gap: .35rem;
+  margin-top: .5rem; padding: .6rem; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 26%, transparent);
+}
+.triage__ric-perche { margin: 0; font-size: .76rem; color: var(--text-sub); }
+.triage__ric-ambiguo {
+  display: flex; align-items: center; gap: .35rem;
+  margin: .5rem 0 0; font-size: .82rem; color: var(--text-sub);
+}
+
 /* Matching differiti: confronto a due lati (movimento già a libro ↔ riga banca) */
 .triage__match { display: flex; align-items: stretch; gap: .75rem; flex-wrap: wrap; margin-bottom: .5rem; }
 .triage__match-side {

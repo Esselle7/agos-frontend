@@ -4,7 +4,8 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { API_PATHS } from '../constants/api-paths';
 import {
-  PlanSummaryDTO, PlanDetailDTO, PlanCreateRequest, CogeOption,
+  PlanSummaryDTO, PlanDetailDTO, PlanCreateRequest,
+  PlanUpdateRequest, CogeOption,
 } from '../../features/spese-ricorrenti/spese-ricorrenti.models';
 import { ContoBancarioDTO } from '../models/anagrafica.models';
 import { ContiService } from './conti.service';
@@ -25,6 +26,11 @@ export class SpeseRicorrentiService {
 
   createPlan(req: PlanCreateRequest): Observable<PlanDetailDTO> {
     return this.http.post<PlanDetailDTO>(this.base + API_PATHS.SPESE_RICORRENTI.PIANI, req);
+  }
+
+  /** Modifica anagrafica + riconoscimento del piano (gli importi NON si toccano da qui). */
+  updatePlan(id: string, req: PlanUpdateRequest): Observable<PlanDetailDTO> {
+    return this.http.put<PlanDetailDTO>(this.base + API_PATHS.SPESE_RICORRENTI.PIANO(id), req);
   }
 
   liquidatePlan(id: string, importoTotale?: number, note?: string): Observable<PlanDetailDTO> {
@@ -74,10 +80,10 @@ export class SpeseRicorrentiService {
   }
 
   getContiCoge(): Observable<CogeOption[]> {
-    return this.http.get<[number, string, string][]>(
+    return this.http.get<[number, string, string, string][]>(
       this.base + API_PATHS.SPESE_RICORRENTI.CONTI_COGE
     ).pipe(
-      map(rows => rows.map(r => ({ id: r[0], codice: r[1], descrizione: r[2] })))
+      map(rows => rows.map(r => ({ id: r[0], codice: r[1], descrizione: r[2], tipo: r[3] })))
     );
   }
 

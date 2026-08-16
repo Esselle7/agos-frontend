@@ -1,33 +1,34 @@
 <div class="imp">
   <header class="imp__head">
     <span class="page-eyebrow">Contabilità</span>
-    <h1>Import & Smistamento</h1>
-    @if (kpi(); as k) {
-      <div class="imp__kpi">
-        <div class="imp__kpi-item"><span class="v">{{ k.righeTotali }}</span><span class="l">righe importate</span></div>
-        <div class="imp__kpi-item"><span class="v">{{ pctImportati() }}%</span><span class="l">contabilizzate</span></div>
-        <div class="imp__kpi-item"><span class="v" [class.warn]="transitoriResidui() > 0">{{ transitoriResidui() }}</span><span class="l">da smistare</span></div>
-        <div class="imp__kpi-item"><span class="v">{{ k.coperturaFornitoriPct }}%</span><span class="l">copertura fornitori</span></div>
-      </div>
-    }
+    <h1>Import &amp; Smistamento</h1>
   </header>
 
+  <!-- §6.1 — Il contatore è la fascia che non sparisce mai: è il messaggio principale della
+       pagina, l'oracolo contro cui si verifica l'estratto conto. Se non c'è ancora un import,
+       resta il vecchio riepilogo KPI: meglio qualcosa di onesto che una fascia vuota. -->
+  @if (contatore(); as c) {
+    <app-contatore-import [dati]="c"></app-contatore-import>
+  } @else if (kpi(); as k) {
+    <div class="imp__kpi">
+      <div class="imp__kpi-item"><span class="v">{{ k.righeTotali }}</span><span class="l">righe importate</span></div>
+      <div class="imp__kpi-item"><span class="v">{{ pctImportati() }}%</span><span class="l">contabilizzate</span></div>
+      <div class="imp__kpi-item"><span class="v" [class.warn]="transitoriResidui() > 0">{{ transitoriResidui() }}</span><span class="l">da smistare</span></div>
+      <div class="imp__kpi-item"><span class="v">{{ k.coperturaFornitoriPct }}%</span><span class="l">copertura fornitori</span></div>
+    </div>
+  }
+
+  <!-- §6.2 — Dove sei e cosa ti aspetta, in ordine fisso. -->
+  <app-fasi-bar></app-fasi-bar>
+
   <div class="imp__body">
+    <!-- Strumenti, non lavoro: lo smistamento sta tutto nella barra di fase qui sopra (13/08/2026).
+         Due menu per le stesse code volevano dire due elenchi da allineare a mano. -->
     <nav class="imp__nav">
       <div class="imp__nav-group">
         @for (n of navOps; track n.link) {
           <a class="imp__nav-item" [routerLink]="n.link" routerLinkActive="active">
             <mat-icon>{{ n.icon }}</mat-icon><span class="imp__nav-label">{{ n.label }}</span>
-          </a>
-        }
-      </div>
-      <div class="imp__nav-sep">Smistamento</div>
-      <div class="imp__nav-group">
-        @for (n of navSmistamento; track n.link) {
-          <a class="imp__nav-item" [routerLink]="n.link" routerLinkActive="active">
-            <mat-icon>{{ n.icon }}</mat-icon>
-            <span class="imp__nav-label">{{ n.label }}</span>
-            @if (n.badge && n.badge() > 0) { <span class="imp__badge">{{ n.badge() }}</span> }
           </a>
         }
       </div>

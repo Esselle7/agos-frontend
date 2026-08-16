@@ -1,5 +1,6 @@
 import { Component, OnInit, signal, inject, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
@@ -13,7 +14,7 @@ import { HelpNoteComponent } from '../../shared/components/help-note/help-note.c
  * Pannello di quadratura di periodo POS (PROMPT-RICONCILIAZIONE-PERIODO §5). Sostituisce la
  * vecchia vista "Incassi POS da ripartire" a scontrino: i ricavi POS nascono da Billy (verità),
  * qui si mostra SOLO il controllo di quadratura Σ Billy ↔ Σ POS banca scomposto per causa
- * (coda testa esclusa, coda fondo in attesa, residuo core). È informativo: nessuna azione di
+ * (coda testa esclusa, coda fondo in attesa). È informativo: nessuna azione di
  * catalogazione — i ricavi sono già contabilizzati.
  */
 @Component({
@@ -22,13 +23,19 @@ import { HelpNoteComponent } from '../../shared/components/help-note/help-note.c
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CurrencyPipe, DatePipe,
-    MatIconModule, MatProgressSpinnerModule, MatTableModule, MatTooltipModule,
+    MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTableModule, MatTooltipModule,
     HelpNoteComponent,
   ],
   template: `
     <div class="q">
       @if (loading()) {
         <div class="q__center"><mat-spinner diameter="40"></mat-spinner></div>
+      } @else if (caricamentoFallito()) {
+        <div class="q__empty">
+          <mat-icon>cloud_off</mat-icon>
+          <p>Non è stato possibile caricare la quadratura. I dati non sono stati toccati.</p>
+          <button mat-stroked-button (click)="ricarica()">Riprova</button>
+        </div>
       } @else if (!q()) {
         <div class="q__empty">
           <mat-icon>balance</mat-icon>
@@ -41,7 +48,7 @@ import { HelpNoteComponent } from '../../shared/components/help-note/help-note.c
             controlla solo che, nel periodo, il totale delle vendite Billy e il totale dei POS
             accreditati in banca <strong>tornino</strong>.</p>
           <p>È una verifica informativa: i ricavi sono già contabilizzati da Billy, qui non c'è
-            nulla da catalogare. Piccole differenze (il "residuo core") sono normali e sono
+            nulla da catalogare. Piccole differenze fra Billy e banca sono normali e sono
             spiegate per causa più sotto.</p>
         </agos-help-note>
 
@@ -52,11 +59,6 @@ import { HelpNoteComponent } from '../../shared/components/help-note/help-note.c
               Controllo informativo Σ Billy ↔ Σ POS banca. I ricavi sono già contabilizzati da Billy.
               @if (q()!.importDataOra) { · ultimo import {{ q()!.importDataOra | date:'dd/MM/yyyy' }} }
             </p>
-          </div>
-          <div class="q__residuo" [class.q__residuo--warn]="!isZero(q()!.residuoCore)"
-               matTooltip="Differenza strutturale residua del core (agriturismo a POS, Satispay netto/lordo, storni)">
-            <span class="q__residuo-l">Residuo core</span>
-            <span class="q__residuo-v">{{ q()!.residuoCore | currency:'EUR' }}</span>
           </div>
         </header>
 
@@ -107,7 +109,7 @@ import { HelpNoteComponent } from '../../shared/components/help-note/help-note.c
           </section>
         }
 
-        <!-- Cause del residuo -->
+        <!-- Cause dello scarto Billy ↔ banca -->
         @if (q()!.note.length) {
           <section class="q__card q__card--note">
             <h3>Scomposizione del Δ — cause note</h3>
@@ -143,10 +145,6 @@ import { HelpNoteComponent } from '../../shared/components/help-note/help-note.c
     .q__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
     .q__head h2 { margin: 0; font-size: 1.25rem; }
     .q__sub { margin: 4px 0 0; color: var(--text-sub); font-size: .85rem; max-width: 60ch; }
-    .q__residuo { display: flex; flex-direction: column; align-items: flex-end; padding: 8px 14px; border-radius: var(--radius-md); background: var(--tint-success); border: 1px solid var(--success); }
-    .q__residuo--warn { background: var(--tint-warning); border-color: var(--warning); }
-    .q__residuo-l { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-sub); }
-    .q__residuo-v { font-size: 1.3rem; font-weight: 700; }
     .q__cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
     .q__card { border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 14px 16px; background: var(--card); }
     .q__card h3 { margin: 0 0 10px; font-size: .95rem; }
@@ -171,13 +169,23 @@ export class QuadraturaPanelComponent implements OnInit {
 
   readonly q = signal<QuadraturaPeriodoDTO | null>(null);
   readonly loading = signal(true);
+  /**
+   * Caricamento fallito, distinto da «quadratura assente». Senza questo terzo stato una
+   * richiesta andata male diceva «Esegui un import congiunto», cioè mandava l'utente a rifare
+   * un import per un errore di rete — e senza nemmeno un messaggio d'errore.
+   */
+  readonly caricamentoFallito = signal(false);
 
-  ngOnInit(): void {
+  ngOnInit(): void { this.ricarica(); }
+
+  /** Ricarica da zero. È anche l'azione del bottone «Riprova» dello stato di errore. */
+  ricarica(): void {
+    this.loading.set(true);
+    this.caricamentoFallito.set(false);
     this.movimenti.getQuadratura().subscribe({
       next: q => { this.q.set(q); this.loading.set(false); },
-      error: () => { this.q.set(null); this.loading.set(false); },
+      error: () => { this.q.set(null); this.loading.set(false); this.caricamentoFallito.set(true); },
     });
   }
 
-  isZero(v: number): boolean { return Math.abs(v) < 0.005; }
 }

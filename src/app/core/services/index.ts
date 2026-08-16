@@ -4,7 +4,7 @@ export * from './conti.service';
 export * from './categorie.service';
 export * from './fornitori.service';
 export * from './movimenti.service';
-export * from './cassa.service';
+export * from './contanti.service';
 export * from './eventi.service';
 export * from './dashboard.service';
 export * from './reporting.service';

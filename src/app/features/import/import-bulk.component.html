@@ -23,8 +23,16 @@
         {{ importing() ? 'Elaborazione…' : 'Importa i 3 file' }}
       </button>
     </div>
+
+    <!-- I passi compaiono appena l'import parte e restano finché non arriva la risposta: è il
+         riscontro che il sistema sta lavorando. I numeri accanto arrivano dal server, misurati. -->
+    @if (importing()) {
+      <app-passi-import class="bulk__passi" [inCorso]="true" />
+    }
   } @else {
     <div class="bulk__result">
+      <!-- Il consuntivo dell'elaborazione: gli stessi passi, ora con la durata vera di ognuno. -->
+      <app-passi-import class="bulk__passi" [inCorso]="false" [fasi]="importResult()!.fasi ?? []" />
       <div class="bulk__row ok"><mat-icon>check_circle</mat-icon><span>Movimenti importati: <strong>{{ importResult()!.importati }}</strong></span></div>
       @if (importResult()!.ambigui > 0) { <div class="bulk__row warn"><mat-icon>help</mat-icon><span>Ambiguità: <strong>{{ importResult()!.ambigui }}</strong></span></div> }
       @if ((importResult()!.matchingDifferiti ?? 0) > 0) {
@@ -33,7 +41,16 @@
       @if ((importResult()!.ricorrenti ?? 0) > 0) {
         <div class="bulk__row warn"><mat-icon>event_repeat</mat-icon><span>Spese ricorrenti parcheggiate: <strong>{{ importResult()!.ricorrenti }}</strong> (rate già addebitate in banca — confermale in <a routerLink="/import/smistamento/ricorrenti">Ricorrenti</a> per creare il movimento)</span></div>
       }
-      <div class="bulk__row"><mat-icon>filter_alt</mat-icon><span>Righe escluse (duplicati POS): <strong>{{ importResult()!.scartati }}</strong></span></div>
+      <!-- Regola §7.4 n.3: se restano righe fuori dai conti l'import NON è «completato». Prima
+           questa riga diceva «duplicati POS» con l'icona neutra: 1.189,55 € annunciati come
+           routine, senza un link per andarli a guardare. -->
+      @if (importResult()!.scartati > 0) {
+        <div class="bulk__row err"><mat-icon>money_off</mat-icon>
+          <span>Righe fuori dai conti: <strong>{{ importResult()!.scartati }}</strong> — la banca le
+            ha registrate, il gestionale no: <a routerLink="/import/scartati">guardale una per una</a>
+            prima di considerare finito questo import</span>
+        </div>
+      }
       <div class="bulk__row"><mat-icon>info</mat-icon><span>Duplicati saltati: <strong>{{ importResult()!.duplicati }}</strong></span></div>
       @if (avvisi().length) {
         <div class="bulk__row warn"><mat-icon>info</mat-icon>

@@ -9,6 +9,10 @@ export type StatoEvento = 'PREVENTIVATO' | 'CONFERMATO' | 'SALDATO' | 'ANNULLATO
  */
 export type TipoPagamentoEvento = 'CAPARRA' | 'ACCONTO' | 'SALDO' | 'PENALE' | 'RIMBORSO';
 
+/** Gli stessi 5 codici in forma iterabile (lk_tipi_evento_mov). AFFITTO_SALA non è tra questi. */
+export const TIPI_PAGAMENTO_EVENTO: readonly TipoPagamentoEvento[] =
+  ['CAPARRA', 'ACCONTO', 'SALDO', 'PENALE', 'RIMBORSO'];
+
 /** Sottotipi creabili dal form (esclude RIMBORSO che è generato in altri flussi). */
 export type TipoPagamentoForm = Exclude<TipoPagamentoEvento, 'RIMBORSO'>;
 

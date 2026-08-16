@@ -1,3 +1,5 @@
+import { PagedResponse } from './shared.models';
+
 export type TipoMovimento = 'ENTRATA' | 'USCITA';
 export type StatoMovimento = 'REGISTRATO' | 'DA_LIQUIDARE' | 'ANNULLATO';
 export type FonteMovimento = 'MANUALE' | 'IMPORT_CSV' | 'STRIPE' | 'SATISPAY' | 'SHOPIFY' | 'BILLY' | 'APERTURA';
@@ -137,6 +139,16 @@ export interface EtlRowError {
   rawData: Record<string, string>;
 }
 
+/**
+ * Un passo dell'elaborazione dell'import, con la durata MISURATA dal server.
+ * I nomi e l'ordine vengono da `MovimentoImportService.importCongiunto`: qui non si inventa nulla.
+ */
+export interface FaseImportDTO {
+  nome: string;
+  dettaglio: string;
+  millis: number;
+}
+
 export interface EtlImportResponse {
   importLogId: string;
   importati: number;
@@ -152,6 +164,8 @@ export interface EtlImportResponse {
   /** Feature 2 — righe banca intercettate che combaciano con un movimento DA_LIQUIDARE
    *  esistente (non persistite come nuovi movimenti; da risolvere nello smistamento). */
   matchingDifferiti?: number;
+  /** I passi che l'elaborazione ha davvero eseguito, con la loro durata misurata. */
+  fasi?: FaseImportDTO[];
 }
 
 export interface ImportLogDTO {
@@ -189,6 +203,20 @@ export interface ImportKpiDTO {
   costiDaClassificare: number;
 }
 
+/**
+ * I badge della console Import in una risposta sola (GET /api/movimenti/import/badge).
+ * Sostituisce 6 liste chieste con `size=1` solo per leggerne il totale + `/import/history`
+ * chiesta solo per l'id dell'ultimo import: 8 richieste HTTP per 6 numeri.
+ */
+export interface ImportBadgeDTO {
+  catalogare: number;
+  ricorrenti: number;
+  eventi: number;
+  matchingDifferiti: number;
+  scartati: number;
+  ultimoImportId: string | null;
+}
+
 export interface RegolaClassificazioneDTO {
   id: number | null;
   priorita: number;
@@ -219,6 +247,52 @@ export interface TransitorioDTO {
   contoBancarioId: number | null;
   ibanEstratto: string | null;
   controparteEstratta: string | null;
+  /** Chiave del gruppo: righe dello STESSO esercente. null = questa riga è una decisione a sé. */
+  gruppo: string | null;
+  /** Data in cui la vendita è avvenuta, se la causale la dichiara ("… DEL 10/01/26"). */
+  dataOperazione: string | null;
+  /** Circuito dell'incasso POS letto dalla causale (NEXI, NUMIA-INTER…); null se non è POS. */
+  circuitoPos: string | null;
+  /** Cosa Billy ha registrato lo stesso giorno sullo stesso conto — di GIORNATA, non 1:1. */
+  riscontroBilly: RiscontroBillyDTO | null;
+  /** Conto proposto da una firma keyword appresa — suggerimento, mai applicato da solo. */
+  cogeSuggeritoId: number | null;
+  motivoSuggerimento: string | null;
+  /** Ramo calcolato dal motore o default del fornitore: pre-selezionato, mai applicato da solo. */
+  buSuggerita: number | null;
+  /** Ragione sociale del fornitore riconosciuto dal motore; null se nessuno. */
+  fornitoreNome: string | null;
+  /** La chiave con cui si ritrova questa riga sull'estratto conto della banca. */
+  riferimentoEsterno: string | null;
+  /** Come è stata pagata, letto dalla banca (Bonifico, Addebito diretto SDD…). */
+  metodoPagamento: string | null;
+  /** Le firme che il sistema imparerebbe confermando: vuota = da questa causale non si impara. */
+  firmeDaImparare: FirmaDaImparareDTO[];
+}
+
+export interface FirmaDaImparareDTO {
+  token: string[];
+  natura: string;   // IDENTITA | DOMINIO
+}
+
+/**
+ * Riscontro Billy di giornata per una riga bancaria POS.
+ *
+ * NON è l'abbinamento scontrino↔accredito: quello non esiste nei dati (la riconciliazione POS
+ * ripartisce i totali di periodo). Misurato: 32 righe POS su 48 hanno un riscontro, con importi
+ * che non coincidono. Serve a dare l'ordine di grandezza, non a quadrare al centesimo.
+ */
+export interface VoceBillyDTO {
+  voce: string;
+  totale: number;
+}
+
+export interface RiscontroBillyDTO {
+  scontrini: number;
+  totale: number;
+  scarto: number;
+  /** Di che cosa era fatta la giornata, per voce di bilancio Billy (la più grossa per prima). */
+  categorie: VoceBillyDTO[];
 }
 
 export interface ClassificaTransitorioRequest {
@@ -253,7 +327,6 @@ export interface QuadraturaPeriodoDTO {
   assegnatoCa: number;
   codaTesta: number;
   codaFondo: number;
-  residuoCore: number;
   maxDelBanca: string | null;
   note: string[];
   approssimazioni: string[];
@@ -275,7 +348,18 @@ export interface EventoParcheggiatoDTO {
   controparteIban: string | null;
   dataEventoEstratta: string | null;
   stato: string;                       // DA_RICONCILIARE | RICONCILIATO | SCARTATO
+  /** Proposto dal sistema solo se nome controparte E data evento coincidono. null = scegli tu. */
+  eventoSuggeritoId: string | null;
+  eventoSuggeritoNome: string | null;
+  /**
+   * C2 — giorno in cui è stato inserito un pagamento già a libro con stesso importo, stessa data
+   * e stessa banca di questa riga, e su quale evento. È informazione, non un divieto (C3): la
+   * riga resta confermabile, e una riga senza segnale può comunque essere respinta alla conferma.
+   */
+  gemelloInseritoIl: string | null;
+  gemelloEventoNome: string | null;
 }
+
 
 export interface RisolviEventoRequest {
   azione: 'SCARTA' | 'CLASSIFICA' | 'RICONCILIA';
@@ -283,6 +367,8 @@ export interface RisolviEventoRequest {
   businessUnitId: number | null;
   eventoId: string | null;
   nota: string | null;
+  tipo?: import('./eventi.models').TipoPagamentoEvento | null;
+  creaSegnaposto?: boolean;
 }
 
 // ── Analisi duplicati eventi (aggancio cross-sorgente senza chiave) ────────────
@@ -396,6 +482,44 @@ export interface KeywordAnteprimaDTO {
   firme: KeywordAnteprimaFirma[];
 }
 
+// ── Coda «Righe fuori dai conti» (audit §7.4) ───────────────────────────────
+
+/**
+ * Riga bancaria che l'import NON ha contabilizzato e che nessuna schermata mostrava
+ * fino all'11/08/2026: è denaro fuori dai conti finché qualcuno non la guarda.
+ */
+export interface ScartatoDTO {
+  id: string;
+  importLogId: string;
+  fonte: string;
+  rigaNumero: number;
+  motivo: string;           // SKIP_POS | SKIP_CODA_TESTA | SKIP_GIROCONTO
+  motivoLeggibile: string;  // il «perché» in italiano, da mostrare a schermo
+  dataMovimento: string | null;
+  importo: number;
+  tipo: string | null;      // ENTRATA | USCITA
+  descrizione: string | null;
+  contoBancarioId: number | null;
+  contoNome: string | null;
+  stato: string;            // DA_VEDERE | CONTABILIZZATA | IGNORATA
+  movimentoId: string | null;
+  /** false = il grezzo non basta più per creare un movimento: la riga si vede ma non si contabilizza. */
+  normalizzabile: boolean;
+}
+
+/** «Non è una spesa, è un incasso evento / una rata»: rimanda la riga alla coda che sa lavorarla. */
+export interface SpostaRigaRequest {
+  destinazione: 'EVENTO' | 'RICORRENTE';
+  nota: string | null;
+}
+
+export interface RisolviScartatoRequest {
+  azione: 'CONTABILIZZA' | 'IGNORA';
+  cogeId: number | null;   // obbligatorio su CONTABILIZZA
+  /** OBBLIGATORIO su IGNORA (R9): «escluso di proposito» vuole un perché scritto. */
+  nota: string | null;
+}
+
 // ── Parcheggio spese ricorrenti / finanziamenti (V9) ────────────────────────
 
 export interface RicorrenteParcheggiataDTO {
@@ -411,6 +535,22 @@ export interface RicorrenteParcheggiataDTO {
   stato: string;          // DA_RICONCILIARE | CONFERMATA | IGNORATA | RICONCILIATA(legacy)
   cogeSuggeritoId: number | null;
   cogeSuggeritoCodice: string | null;
+  /** Match strutturato coi piani attivi: rata proponibile con un click, null se assente/ambigua. */
+  propostaRataId: string | null;
+  candidati: CandidatoRataDTO[];
+}
+
+/** Una rata compatibile con la riga bancaria, col motivo del match in chiaro. */
+export interface CandidatoRataDTO {
+  pianoId: string;
+  pianoDescrizione: string;
+  rataId: string;
+  numeroRata: number;
+  dataScadenza: string;
+  importoRata: number;
+  scartoGiorni: number;
+  scartoImporto: number;
+  motivo: string;
 }
 
 export interface RisolviRicorrenteRequest {
@@ -459,4 +599,111 @@ export interface RisolviMatchingDifferitoRequest {
   /** opzionale per COLLEGA: override del metodo di pagamento da usare in liquidazione. */
   metodoPagamentoId: number | null;
   nota: string | null;
+}
+
+// ── Pannello BU dell'import ───────────────────────────────────────────────────
+// I movimenti creati da UN import raggruppati per Business Unit, con la coda
+// "da assegnare" a parte (transitorio 39/49.99.999 ancora sulla BU di fallback 5).
+
+export interface BuRigaDTO {
+  id: string;
+  tipo: 'ENTRATA' | 'USCITA';
+  importo: number;
+  dataMovimento: string;
+  descrizione: string | null;
+  cogeCodice: string;
+  cogeDescrizione: string;
+  buId: number;
+  /** conto CoGe «da classificare»: la BU è assegnata ma la CoGe resta da sistemare */
+  transitorio: boolean;
+}
+
+export interface BuGruppoDTO {
+  buId: number | null;       // null = coda "da assegnare"
+  buCodice: string | null;
+  buNome: string;
+  numero: number;
+  entrate: number;
+  uscite: number;
+  movimenti: BuRigaDTO[];
+}
+
+export interface BuPanelDTO {
+  importLogId: string;
+  dataImport: string;
+  filename: string | null;
+  totaleMovimenti: number;   // = Σ gruppi.numero + incerti.numero
+  gruppi: BuGruppoDTO[];
+  incerti: BuGruppoDTO;
+}
+
+// ── Contatore e registro dell'import (SPEC import-v2 §5/§6, R7–R10, R21–R22) ─
+
+/** Un bucket del contatore, per direzione. Gli importi sono sempre positivi. */
+export interface ContatoreBucketDTO {
+  righe: number;
+  entrate: number;
+  uscite: number;
+}
+
+/** Fuori dall'universo delle righe banca: si dichiara, non si somma mai (§5). */
+export interface VoceFuoriUniversoDTO {
+  etichetta: string;
+  righe: number;
+  importo: number;
+  perche: string;
+}
+
+/**
+ * Quanto è stato estratto dalle banche e dove si trova adesso, al centesimo e per direzione.
+ * `lette` è misurato all'import sui file; gli altri bucket sono derivati dallo stato attuale:
+ * se `quadra` è falso c'è un buco vero, non un errore di arrotondamento.
+ */
+export interface ContatoreImportDTO {
+  importLogId: string;
+  lette: ContatoreBucketDTO;
+  /** false = import caricato prima che l'universo si misurasse: `quadra` non significa nulla. */
+  universoMisurato: boolean;
+  aLibro: ContatoreBucketDTO;
+  daCatalogare: ContatoreBucketDTO;
+  fuoriDaiConti: ContatoreBucketDTO;
+  esclusi: ContatoreBucketDTO;
+  duplicate: ContatoreBucketDTO;
+  partiteDiGiro: ContatoreBucketDTO;
+  quadra: boolean;
+  scartoEntrate: number;
+  scartoUscite: number;
+  fuoriUniverso: VoceFuoriUniversoDTO[];
+}
+
+/**
+ * Il registro: la pagina di righe più i totali del FILTRO CORRENTE (non della pagina caricata).
+ * Due colonne, entrate e uscite, mai un netto: un netto nasconde proprio la cosa che si sta
+ * verificando contro l'estratto conto.
+ */
+export interface RegistroImportDTO {
+  pagina: PagedResponse<RigaImportDTO>;
+  righeEntrate: number;
+  totaleEntrate: number;
+  righeUscite: number;
+  totaleUscite: number;
+}
+
+export type StatoRigaImport =
+  'A_LIBRO' | 'DA_CATALOGARE' | 'FUORI_DAI_CONTI' | 'ESCLUSO' | 'DUPLICATA' | 'PARTITA_DI_GIRO';
+
+/** Una riga bancaria dell'import com'è adesso: il registro ne elenca una per riga letta. */
+export interface RigaImportDTO {
+  origine: 'MOVIMENTO' | 'SCARTATO' | 'AMBIGUITA' | 'EVENTO' | 'RICORRENTE' | 'DIFFERITO';
+  id: string;
+  data: string | null;
+  contoBancarioId: number | null;
+  conto: string | null;
+  tipo: 'ENTRATA' | 'USCITA';
+  importo: number;
+  causale: string | null;
+  stato: StatoRigaImport;
+  /** R22: lo stato non è mai affidato al solo colore — questa è la parola del badge. */
+  statoParola: string;
+  dettaglio: string | null;
 }

@@ -31,9 +31,13 @@ export const API_PATHS = {
     BY_ID:         (id: string) => `/api/personale/${id}`,
   },
   MANSIONI: '/api/mansioni',
-  CASSA: {
-    SALDO:     '/api/cassa/saldo',
-    MOVIMENTI: '/api/cassa/movimenti',
+  CONTANTI: {
+    SALDO:    '/api/contanti/saldo',
+    PRELIEVO: '/api/contanti/prelievo',
+    DEPOSITO: '/api/contanti/deposito',
+    INCASSO:  '/api/contanti/incasso',
+    SPESA:    '/api/contanti/spesa',
+    CONTA:    '/api/contanti/conta',
   },
   EVENTI:      '/api/eventi',
   EVENTI_MIEI: '/api/eventi/miei',
@@ -45,19 +49,32 @@ export const API_PATHS = {
     IMPORT_HISTORY:   '/api/movimenti/import/history',
     IMPORT_AMBIGUITA:     (logId: string) => `/api/movimenti/import/${logId}/ambiguita`,
     CLASSIFICA_AMBIGUITA: (id: string)    => `/api/movimenti/import/ambiguita/${id}/classifica`,
+    AMBIGUITA_E_UN_EVENTO: (id: string)   => `/api/movimenti/import/ambiguita/${id}/e-un-evento`,
     IMPORT_KPI:           '/api/movimenti/import/kpi',
+    /** Tutti i contatori dei badge + l'id dell'ultimo import, in una chiamata sola. */
+    IMPORT_BADGE:         '/api/movimenti/import/badge',
     IMPORT_REGOLE:        '/api/movimenti/import/regole',
     IMPORT_REGOLA_ATTIVA: (id: number)    => `/api/movimenti/import/regole/${id}/attiva`,
     IMPORT_REGOLA:        (id: number)    => `/api/movimenti/import/regole/${id}`,
     IMPORT_ROLLBACK:      (logId: string) => `/api/movimenti/import/${logId}/rollback`,
     IMPORT_TRANSITORI:            '/api/movimenti/import/transitori',
     IMPORT_TRANSITORIO_CLASSIFICA:(id: string) => `/api/movimenti/import/transitori/${id}/classifica`,
+    // «Non è una spesa»: rimanda la riga alla coda giusta (incassi evento / rate)
+    IMPORT_TRANSITORIO_SPOSTA:    (id: string) => `/api/movimenti/import/transitori/${id}/sposta`,
     IMPORT_EVENTI:               '/api/movimenti/import/eventi',
     IMPORT_EVENTO_RISOLVI:       (id: string) => `/api/movimenti/import/eventi/${id}/risolvi`,
     IMPORT_RICORRENTI:           '/api/movimenti/import/ricorrenti',
     IMPORT_RICORRENTE_RISOLVI:   (id: string) => `/api/movimenti/import/ricorrenti/${id}/risolvi`,
-    IMPORT_TRANSITORI_RIBA:      '/api/movimenti/import/transitori/riba',
+    IMPORT_BU_PER_COGE:          '/api/movimenti/import/bu-per-coge',
+    IMPORT_SCARTATI:             '/api/movimenti/import/scartati',
+    IMPORT_SCARTATO_RISOLVI:     (id: string) => `/api/movimenti/import/scartati/${id}/risolvi`,
     IMPORT_QUADRATURA:           '/api/movimenti/import/quadratura',
+    // Contatore + registro dell'import (SPEC import-v2 §5/§6, R7-R10, R21)
+    IMPORT_CONTATORE:            (logId: string) => `/api/movimenti/import/${logId}/contatore`,
+    IMPORT_RIGHE:                (logId: string) => `/api/movimenti/import/${logId}/righe`,
+    // Pannello BU dell'import: movimenti raggruppati per Business Unit + cambio BU (analitico)
+    IMPORT_BU_PANEL:             (logId: string) => `/api/movimenti/import/${logId}/bu`,
+    IMPORT_BU_CAMBIA:            (logId: string, movId: string) => `/api/movimenti/import/${logId}/bu/${movId}`,
     IMPORT_ANALISI_DUPLICATI:    '/api/movimenti/import/eventi/analisi-duplicati',
     // Feature 1 — movimenti DA_LIQUIDARE scaduti (in ritardo)
     DA_LIQUIDARE_RITARDO:        '/api/movimenti/da-liquidare-in-ritardo',
@@ -66,7 +83,6 @@ export const API_PATHS = {
     IMPORT_MATCHING_DIFFERITO_RISOLVI:(id: string) => `/api/movimenti/import/matching-differiti/${id}/risolvi`,
     // Gestione Keyword (§4.8)
     KEYWORD:              '/api/movimenti/keyword',
-    KEYWORD_ANTEPRIMA:    '/api/movimenti/keyword/anteprima',
     KEYWORD_ID:           (id: string) => `/api/movimenti/keyword/${id}`,
     KEYWORD_CONFLITTI:    '/api/movimenti/keyword/conflitti',
     KEYWORD_CONFLITTO_RISOLVI: (id: string) => `/api/movimenti/keyword/conflitti/${id}/risolvi`,
