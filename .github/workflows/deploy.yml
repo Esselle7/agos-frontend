@@ -54,6 +54,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT }}
           script: |
+            set -eu
             echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u esselle7 --password-stdin
 
             cd ~/app
@@ -61,6 +62,12 @@ jobs:
             docker compose --env-file .env.prod pull frontend
             docker compose --env-file .env.prod up -d --no-deps frontend
 
-            docker image prune -f
             sleep 10
             docker compose ps frontend
+
+            # Il pull può fallire lasciando in piedi il container vecchio, e `ps` riesce lo stesso:
+            # senza questo confronto un non-deploy esce verde (incidente 2026-08-20, run 32370916746).
+            atteso=$(docker image inspect -f '{{.Id}}' ghcr.io/esselle7/agos-frontend:latest)
+            attuale=$(docker inspect -f '{{.Image}}' agos-frontend)
+            [ "$attuale" = "$atteso" ] || { echo "DEPLOY FALLITO: gira $attuale, atteso $atteso"; exit 1; }
+            echo "OK: agos-frontend gira l'immagine appena pushata"
