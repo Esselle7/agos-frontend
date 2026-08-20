@@ -144,6 +144,31 @@ export class MovimentoDetailComponent implements OnInit {
     });
   }
 
+  /**
+   * Divide un movimento cumulativo (RiBa/effetti) in N quote — spec riba-split-importo.
+   * Il dialog è caricato a richiesta: è una funzione rara, non deve pesare sul bundle di ogni
+   * apertura di dettaglio.
+   */
+  dividiMovimento(): void {
+    const mov = this.movimento();
+    if (!mov) return;
+    import('./dividi-movimento-dialog.component').then(m => {
+      this.dialog.open(m.DividiMovimentoDialogComponent, {
+        data: { movimento: mov }, autoFocus: false, maxHeight: '90vh',
+      }).afterClosed().subscribe(figli => {
+        if (figli) this.router.navigate(['/movimenti']);
+      });
+    });
+  }
+
+  /**
+   * La divisione ha senso solo su un movimento vivo e non legato a un evento: il server rifiuta
+   * comunque (R6/R10), ma un bottone che promette e poi nega è peggio di un bottone assente.
+   */
+  divisibile(mov: MovimentoDTO): boolean {
+    return mov.stato !== 'ANNULLATO' && !mov.eventoId;
+  }
+
   deleteMovimento(): void {
     const mov = this.movimento();
     if (!mov) return;

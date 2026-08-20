@@ -57,6 +57,12 @@
             <mat-icon>edit</mat-icon> Modifica
           </a>
           @if (authService.isAdmin()) {
+            @if (divisibile(mov)) {
+              <button mat-stroked-button (click)="dividiMovimento()"
+                      matTooltip="Una riga sola che contiene più voci (RiBa, effetti): la si divide in più movimenti">
+                <mat-icon>call_split</mat-icon> Dividi
+              </button>
+            }
             <button mat-stroked-button color="warn" (click)="deleteMovimento()">
               <mat-icon>delete</mat-icon> Elimina
             </button>
