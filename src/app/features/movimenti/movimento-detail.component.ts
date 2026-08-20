@@ -169,24 +169,56 @@ export class MovimentoDetailComponent implements OnInit {
     return mov.stato !== 'ANNULLATO' && !mov.eventoId;
   }
 
+  /**
+   * Il bottone diceva «Elimina» ma il server ANNULLA soltanto: ora dice quello che fa.
+   * La cancellazione vera è {@link cestinaMovimento}, ed è il secondo passo.
+   */
   deleteMovimento(): void {
     const mov = this.movimento();
     if (!mov) return;
     this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Elimina movimento',
-        message: `Eliminare il movimento "${mov.descrizione}"? L'operazione non può essere annullata.`,
-        confirmLabel: 'Elimina',
+        title: 'Annulla movimento',
+        message: `Annullare il movimento "${mov.descrizione}"? Esce da saldi e bilancio ma resta `
+          + `in archivio: da annullato lo si potrà cestinare davvero.`,
+        confirmLabel: 'Annulla movimento',
         danger: true,
       },
     }).afterClosed().subscribe(confirmed => {
       if (!confirmed) return;
       this.movimentiService.delete(mov.id).subscribe({
         next: () => {
-          this.snackBar.open('Movimento eliminato', 'OK', { duration: 3000 });
+          this.snackBar.open('Movimento annullato', 'OK', { duration: 3000 });
           this.router.navigate(['/movimenti']);
         },
-        error: () => this.snackBar.open('Errore durante l\'eliminazione', 'OK', { duration: 3000 }),
+        error: () => this.snackBar.open('Errore durante l\'annullamento', 'OK', { duration: 3000 }),
+      });
+    });
+  }
+
+  /** Purga fisica, solo da ANNULLATO: la riga sparisce dal database (resta in audit_log). */
+  cestinaMovimento(): void {
+    const mov = this.movimento();
+    if (!mov) return;
+    this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Cestina definitivamente',
+        message: `Togliere davvero dal database il movimento "${mov.descrizione}"? `
+          + `È irreversibile. Il saldo non cambia (un movimento annullato vale già zero) e la riga `
+          + `resta nel registro di controllo.`,
+        confirmLabel: 'Cestina',
+        danger: true,
+      },
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.movimentiService.cestina(mov.id).subscribe({
+        next: () => {
+          this.snackBar.open('Movimento cancellato dal database', 'OK', { duration: 4000 });
+          this.router.navigate(['/movimenti']);
+        },
+        error: (err: { error?: { message?: string } }) =>
+          this.snackBar.open(err.error?.message ?? 'Errore durante la cestinatura', 'OK',
+            { duration: 10000 }),
       });
     });
   }
