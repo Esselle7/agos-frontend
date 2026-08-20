@@ -11,6 +11,7 @@ import { MovimentiService } from '../../core/services/movimenti.service';
 import { SpeseRicorrentiService } from '../../core/services/spese-ricorrenti.service';
 import { RicorrenteParcheggiataDTO, CandidatoRataDTO } from '../../core/models/movimenti.models';
 import { PianoContiCogeDTO } from '../../core/models/anagrafica.models';
+import { PlanSummaryDTO, PlanDetailDTO, InstallmentDTO } from '../spese-ricorrenti/spese-ricorrenti.models';
 import { CogePickerComponent } from '../../shared/components/coge-picker/coge-picker.component';
 import { HelpNoteComponent } from '../../shared/components/help-note/help-note.component';
 import { IndiceCodaComponent, VoceCoda } from '../../shared/components/indice-coda/indice-coda.component';
@@ -139,6 +140,64 @@ import { ImportCountsService } from './import-counts.service';
                 Nessuno dei tuoi {{ piani().length }} piani attivi corrisponde a questa riga: può
                 essere su un altro conto, oppure il nome del piano non compare nella causale.
               </p>
+
+              <!-- Il motore non propone (regola d'oro: un candidato o nessuno), ma l'operatore
+                   deve poter agganciare lo stesso: sceglie lui piano e rata. Stessa chiamata
+                   COLLEGA, stesse guardie server. -->
+              @if (!manuale()) {
+                <button type="button" class="wz__voce wz__voce--altro" (click)="apriManuale()">
+                  <mat-icon>manage_search</mat-icon>
+                  <span class="wz__voce-txt">
+                    <b>Scelgo io il piano e la rata</b>
+                    <small>l'aggancio è identico a quello automatico, con la coppia che scegli tu</small>
+                  </span>
+                </button>
+              } @else {
+                <p class="wz__gruppo-tit"><mat-icon>manage_search</mat-icon> Quale piano?</p>
+                @for (p of piani(); track p.id) {
+                  <button type="button" class="wz__voce"
+                          [class.wz__voce--on]="pianoManuale()?.id === p.id"
+                          (click)="scegliPiano(p)">
+                    <span class="wz__voce-txt">
+                      <b>{{ p.descrizione }}</b>
+                      <small>{{ p.contoBancarioNome }} · rata prevista {{ p.importoRata | currency:'EUR' }}
+                        · {{ p.ratePending }} da pagare</small>
+                    </span>
+                  </button>
+                }
+
+                @if (caricandoRate()) {
+                  <div class="wz__center"><mat-spinner diameter="28"></mat-spinner></div>
+                } @else if (rateFallite()) {
+                  <p class="wz__nota">
+                    <mat-icon>cloud_off</mat-icon>
+                    Non è stato possibile caricare le rate del piano. Nessun dato è stato toccato.
+                  </p>
+                } @else if (pianoManuale(); as pm) {
+                  <p class="wz__gruppo-tit"><mat-icon>event</mat-icon> Quale rata di «{{ pm.descrizione }}»?</p>
+                  @if (!pm.rate.length) {
+                    <p class="wz__nota"><mat-icon>info</mat-icon> Questo piano non ha rate.</p>
+                  } @else if (!collegabili(pm)) {
+                    <p class="wz__nota">
+                      <mat-icon>info</mat-icon>
+                      Nessuna rata di questo piano è collegabile: sono tutte annullate o saltate.
+                    </p>
+                  }
+                  <div class="wz__rate">
+                    @for (rt of pm.rate; track rt.id) {
+                      <button type="button" class="wz__voce"
+                              [class.wz__voce--on]="candidatoScelto()?.rataId === rt.id"
+                              [disabled]="!rataCollegabile(rt)"
+                              (click)="scegliRataManuale(pm, rt)">
+                        <span class="wz__voce-txt">
+                          <b>Rata {{ rt.numeroRata }} · {{ rt.importo | currency:'EUR' }}</b>
+                          <small>scadenza {{ rt.dataScadenza | date:'d MMM yyyy' }} · {{ statoRata(rt) }}</small>
+                        </span>
+                      </button>
+                    }
+                  </div>
+                }
+              }
             }
 
             <button type="button" class="wz__voce wz__voce--altro"
@@ -179,8 +238,13 @@ import { ImportCountsService } from './import-counts.service';
             <p class="wz__effetto">
               <mat-icon>check_circle</mat-icon>
               <span>
-                La rata {{ c.numeroRata }} di <b>«{{ c.pianoDescrizione }}»</b> risulterà pagata
-                il {{ r.dataMovimento | date:'d MMMM yyyy' }}.
+                @if (r.dataMovimento) {
+                  La rata {{ c.numeroRata }} di <b>«{{ c.pianoDescrizione }}»</b> risulterà pagata
+                  il {{ r.dataMovimento | date:'d MMMM yyyy' }}.
+                } @else {
+                  <b>Questa riga non ha data di addebito</b>: il collegamento verrà rifiutato
+                  («DATA_MANCANTE»). Va sistemata la data della riga, non aggirata qui.
+                }
                 @if (scarto(r, c); as s) {
                   <br>
                   <b>Attenzione:</b> l'addebito vero è {{ r.importo | currency:'EUR' }}, la rata del
@@ -323,6 +387,10 @@ import { ImportCountsService } from './import-counts.service';
     .wz__voce-txt small { font-size: .78rem; color: var(--text-sub); }
     .wz__perche { color: var(--text-faint); font-style: italic; }
 
+    .wz__voce[disabled] { opacity: .5; cursor: not-allowed; }
+    .wz__voce[disabled]:hover { border-color: var(--border); background: var(--card); }
+    .wz__rate { max-height: 340px; overflow-y: auto; }
+
     .wz__nota { margin: 0 0 12px; display: flex; align-items: flex-start; gap: 8px;
       font-size: .9rem; line-height: 1.5; color: var(--text-sub); }
     .wz__nota mat-icon { font-size: 17px; width: 17px; height: 17px; flex-shrink: 0; margin-top: 2px; }
@@ -361,7 +429,7 @@ export class RateWizardComponent implements OnInit {
   readonly salvando = signal(false);
 
   readonly righe = signal<RicorrenteParcheggiataDTO[]>([]);
-  readonly piani = signal<{ id: string; stato: string }[]>([]);
+  readonly piani = signal<PlanSummaryDTO[]>([]);
   readonly indice = signal(0);
 
   /** Id delle rate messe in sospeso: l'indice deve dire QUALI, non solo quante. */
@@ -372,6 +440,12 @@ export class RateWizardComponent implements OnInit {
   private readonly svolte = signal<{ id: string; titolo: string; dettaglio: string }[]>([]);
 
   readonly candidatoScelto = signal<CandidatoRataDTO | null>(null);
+
+  /** Scelta manuale piano+rata: si apre solo quando il motore non propone nulla. */
+  readonly manuale = signal(false);
+  readonly pianoManuale = signal<PlanDetailDTO | null>(null);
+  readonly caricandoRate = signal(false);
+  readonly rateFallite = signal(false);
   readonly registraSenzaPiano = signal(false);
   readonly cogeScelto = signal<number | null>(null);
 
@@ -462,6 +536,54 @@ export class RateWizardComponent implements OnInit {
 
   abs(n: number): number { return Math.abs(n); }
 
+  apriManuale(): void {
+    this.manuale.set(true);
+    this.registraSenzaPiano.set(false);
+  }
+
+  /** Le rate arrivano col dettaglio del piano: la lista dei piani non le porta. */
+  scegliPiano(p: PlanSummaryDTO): void {
+    if (this.pianoManuale()?.id === p.id) return;
+    this.pianoManuale.set(null);
+    this.candidatoScelto.set(null);
+    this.caricandoRate.set(true);
+    this.rateFallite.set(false);
+    this.spese.getPlan(p.id).subscribe({
+      next: d => { this.pianoManuale.set(d); this.caricandoRate.set(false); },
+      error: () => { this.caricandoRate.set(false); this.rateFallite.set(true); },
+    });
+  }
+
+  /** I4: si collegano solo rate PENDING o già PAID — le altre il server le rifiuta con 409. */
+  rataCollegabile(rt: InstallmentDTO): boolean {
+    return rt.stato === 'PENDING' || rt.stato === 'PAID';
+  }
+
+  collegabili(p: PlanDetailDTO): boolean {
+    return p.rate.some(rt => this.rataCollegabile(rt));
+  }
+
+  statoRata(rt: InstallmentDTO): string {
+    return rt.stato === 'PENDING' ? 'da pagare'
+      : rt.stato === 'PAID' ? 'già pagata: non crea un secondo movimento'
+      : rt.stato === 'SKIPPED' ? 'saltata: non collegabile'
+      : 'annullata: non collegabile';
+  }
+
+  /**
+   * La scelta manuale rientra nel percorso automatico: si costruisce lo stesso
+   * {@link CandidatoRataDTO} e da qui in poi è `collega()` a decidere, con la stessa chiamata.
+   */
+  scegliRataManuale(p: PlanDetailDTO, rt: InstallmentDTO): void {
+    if (!this.rataCollegabile(rt)) return;
+    this.scegliCandidato({
+      pianoId: p.id, pianoDescrizione: p.descrizione,
+      rataId: rt.id, numeroRata: rt.numeroRata,
+      dataScadenza: rt.dataScadenza, importoRata: rt.importo,
+      scartoGiorni: 0, scartoImporto: 0, motivo: 'scelta manuale',
+    });
+  }
+
   scegliCandidato(c: CandidatoRataDTO): void {
     this.candidatoScelto.set(c);
     this.registraSenzaPiano.set(false);
@@ -485,6 +607,9 @@ export class RateWizardComponent implements OnInit {
     this.candidatoScelto.set(null);
     this.registraSenzaPiano.set(false);
     this.cogeScelto.set(null);
+    this.manuale.set(false);
+    this.pianoManuale.set(null);
+    this.rateFallite.set(false);
   }
 
   rimanda(): void {
@@ -558,6 +683,10 @@ export class RateWizardComponent implements OnInit {
       'Un\'entrata è l\'erogazione di un finanziamento, non una rata: usa «Registra l\'erogazione».',
     COGE_OBBLIGATORIO:
       'Scegli la voce di bilancio prima di registrare la rata.',
+    DATA_MANCANTE:
+      'La riga non ha una data di addebito: senza data non si può registrare il pagamento della rata. La data va corretta sulla riga d\'import, non aggirata qui.',
+    PIANO_O_RATA_MANCANTE:
+      'Manca il piano o la rata: riscegli la coppia e riprova.',
   };
 
   private fallito(err: { error?: { message?: string; code?: string } }): void {

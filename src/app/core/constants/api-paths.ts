@@ -45,10 +45,14 @@ export const API_PATHS = {
     BASE:             '/api/movimenti',
     SOMMARIO:         '/api/movimenti/sommario',
     DIVIDI:           (id: string) => `/api/movimenti/${id}/dividi`,
+    /** Purga fisica di un movimento GIÀ annullato (docs/specs/movimento-cestina-fisica.md). */
+    CESTINA:          (id: string) => `/api/movimenti/${id}/cestina`,
     BULK:             '/api/movimenti/bulk',
     IMPORT_CONGIUNTO: '/api/movimenti/import/congiunto',
     IMPORT_HISTORY:   '/api/movimenti/import/history',
     IMPORT_AMBIGUITA:     (logId: string) => `/api/movimenti/import/${logId}/ambiguita`,
+    // ponytail: TEMPORANEO (SPEC bpm-luglio-2026-recupero.md R8), si cancella con il bottone.
+    IMPORT_RIPROCESSA:    (logId: string) => `/api/movimenti/import/${logId}/riprocessa-coda`,
     CLASSIFICA_AMBIGUITA: (id: string)    => `/api/movimenti/import/ambiguita/${id}/classifica`,
     AMBIGUITA_E_UN_EVENTO: (id: string)   => `/api/movimenti/import/ambiguita/${id}/e-un-evento`,
     IMPORT_KPI:           '/api/movimenti/import/kpi',

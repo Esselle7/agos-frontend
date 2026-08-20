@@ -210,6 +210,8 @@ export interface ImportKpiDTO {
  */
 export interface ImportBadgeDTO {
   catalogare: number;
+  /** Righe che l'import non è riuscito a interpretare (coda `import_ambiguita`). */
+  daRileggere: number;
   ricorrenti: number;
   eventi: number;
   matchingDifferiti: number;

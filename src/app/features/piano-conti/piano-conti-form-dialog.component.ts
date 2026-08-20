@@ -22,6 +22,7 @@ import { TIPI_COGE } from './piano-conti-tipi';
 export interface PianoContiFormData {
   conto?: PianoContiCogeDTO;          // assente → creazione
   presetTipo?: TipoCoge;              // tipo preselezionato (aggiunta dentro un gruppo)
+  bloccaTipo?: boolean;               // natura non modificabile (apertura da un picker filtrato per tipo)
   conti: PianoContiCogeDTO[];         // per il selettore "conto padre", il calcolo codice e l'anteprima
 }
 
@@ -105,12 +106,15 @@ interface PreviewRow { codice: string; nome: string; depth: number; isNew: boole
       <mat-dialog-content class="pcx" [class]="'pcx--' + (tipoSig() ?? 'none')">
         <div class="pcx__form" [formGroup]="form">
           <div class="pcx__step">
-            <span class="pcx__step-label"><b>1.</b> Che natura ha il conto?</span>
+            <span class="pcx__step-label"><b>1.</b> Che natura ha il conto?
+              @if (tipoBloccato) { <span class="pcx__opt">fissata dal campo che stai compilando</span> }
+            </span>
             <div class="pcx__chips" role="radiogroup" aria-label="Natura del conto">
               @for (t of tipi; track t.value) {
                 <button type="button" class="pcx-chip" [class]="'pcx-chip--' + t.value"
                         [class.pcx-chip--on]="tipoSig() === t.value" role="radio"
-                        [attr.aria-checked]="tipoSig() === t.value" (click)="scegliTipo(t.value)">
+                        [attr.aria-checked]="tipoSig() === t.value" [disabled]="tipoBloccato"
+                        (click)="scegliTipo(t.value)">
                   <mat-icon>{{ t.icon }}</mat-icon>
                   <span>{{ t.plurale }}</span>
                 </button>
@@ -255,6 +259,9 @@ interface PreviewRow { codice: string; nome: string; depth: number; isNew: boole
       box-shadow: inset 0 0 0 1px var(--accent);
     }
     .pcx-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .pcx-chip:disabled { cursor: default; opacity: .45; }
+    .pcx-chip:disabled:hover { border-color: var(--border); background: var(--card); }
+    .pcx-chip--on:disabled { opacity: 1; }
 
     /* Pannello destro: anteprima to-be. */
     .pcx__preview {
@@ -334,6 +341,8 @@ export class PianoContiFormDialogComponent {
 
   readonly tipi = TIPI_COGE;
   readonly isEdit = !!this.data.conto;
+  /** Natura imposta dal chiamante (picker filtrato per tipo): le chip restano visibili ma non cliccabili. */
+  readonly tipoBloccato = !this.data.conto && !!this.data.bloccaTipo;
   readonly saving = signal(false);
   readonly errore = signal<string | null>(null);
   readonly codiceEditabile = signal(false);
@@ -433,6 +442,7 @@ export class PianoContiFormDialogComponent {
   }
 
   scegliTipo(value: TipoCoge): void {
+    if (this.tipoBloccato) return;
     this.form.controls.tipo.setValue(value);
     this.form.controls.tipo.markAsTouched();
   }
@@ -520,9 +530,11 @@ export class PianoContiFormDialogComponent {
       : this.service.create(req);
 
     call$.subscribe({
-      next: () => {
+      next: (salvato) => {
         this.snackBar.open(this.isEdit ? 'Conto aggiornato' : 'Conto creato', 'OK', { duration: 2500 });
-        this.dialogRef.close(true);
+        // Chiude col conto salvato invece di `true`: il coge-picker lo preseleziona senza ricaricare
+        // la lista. Chi controlla solo la verità del risultato non cambia (un oggetto è truthy).
+        this.dialogRef.close(salvato);
       },
       error: (err) => {
         this.saving.set(false);

@@ -108,6 +108,10 @@ export class FasiBarComponent {
     { label: 'Già a libro',     link: 'smistamento/matching-differiti',
       restanti: () => this.c().matchingDifferiti, soloSePiena: true },
     { label: 'Fuori dai conti', link: 'scartati',       restanti: () => this.c().scartati, rosso: true },
+    // «Da rileggere»: righe che l'import non ha saputo interpretare. Compare solo quando ce n'è
+    // davvero (di norma è vuota) e porta allo Storico import, dove si ri-processano in blocco.
+    { label: 'Da rileggere',    link: 'storico',        restanti: () => this.c().daRileggere,
+      soloSePiena: true, rosso: true },
     { label: 'Duplicati',       link: 'smistamento/duplicati', restanti: () => this.c().duplicati },
     { label: 'Fatto',           link: 'fatto',          restanti: () => this.restaLavoro() },
   ];
@@ -121,7 +125,7 @@ export class FasiBarComponent {
    */
   readonly restaLavoro = computed(() => {
     const c = this.c();
-    const somma = c.catalogare + c.eventi + c.ricorrenti + c.matchingDifferiti + c.scartati;
+    const somma = c.catalogare + c.daRileggere + c.eventi + c.ricorrenti + c.matchingDifferiti + c.scartati;
     return c.duplicati === null ? (somma > 0 ? somma : null) : somma + c.duplicati;
   });
 }

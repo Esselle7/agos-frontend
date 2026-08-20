@@ -105,6 +105,9 @@ export class CogePickerComponent implements OnInit {
       .subscribe((res: PianoContiCogeDTO | null | undefined) => {
         if (res === undefined) return;              // annullato → nessun cambiamento
         if (res === null) { this.cogeChange.emit(null); return; }  // rimuovi
+        // Il conto può essere appena stato creato dentro il dialog: senza aggiungerlo qui, sync()
+        // non lo troverebbe nella lista caricata all'init e il campo resterebbe sul placeholder.
+        if (!this.conti.some(c => c.id === res.id)) this.conti = [...this.conti, res];
         this.pushRecent(res.id);
         this.cogeChange.emit(res);
       });

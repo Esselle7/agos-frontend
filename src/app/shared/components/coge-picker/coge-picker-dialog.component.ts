@@ -1,14 +1,21 @@
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { PianoContiCogeDTO } from '../../../core/models/anagrafica.models';
+import { PianoContiCogeDTO, TipoCoge } from '../../../core/models/anagrafica.models';
+import { AuthService } from '../../../core/auth/auth.service';
+// Il dialog di creazione conto vive nella pagina /piano-conti: qui viene RIUSATO, non duplicato
+// (unica fonte di verità per codice auto-generato, anteprima e retry su CODICE_DUPLICATO).
+import {
+  PianoContiFormDialogComponent,
+  PianoContiFormData,
+} from '../../../features/piano-conti/piano-conti-form-dialog.component';
 
 export interface CogePickerData {
   conti: PianoContiCogeDTO[];
   tipoFilter?: string[];          // restringe ai tipi indicati (es. ['COSTO'])
-  allowedIds?: number[];          // restringe agli id ammessi (preserva subset curati dal server)
+  allowedIds?: number[];          // restringe agli id ammessi (i chiamanti la calcolano per esclusione)
   selectedId?: number | null;
   title?: string;
   recents?: number[];             // id usati di recente (mostrati come scorciatoie)
@@ -40,6 +47,15 @@ function labelGruppo(key: string): string {
   return GRUPPI.find(g => g.key === key)?.label ?? key;
 }
 
+/**
+ * Id dei conti creati dal picker in questa sessione dell'app. Serve perché i chiamanti passano
+ * `allowedIds` calcolato sul piano che avevano in mano PRIMA (spese-wizard: tutto tranne 30.02.* e i
+ * due transitori): senza questo, il conto appena creato sparirebbe alla riapertura del picker, fino
+ * al reload. Al reload il piano si ricarica e la lista del chiamante lo contiene già → si svuota da sé.
+ * Non allarga i permessi: le guardie vere (CogeRiservatoEventi, CogeTransitorio) sono lato server.
+ */
+const CREATI_QUI = new Set<number>();
+
 interface Categoria {
   id: number;
   codice: string;
@@ -64,6 +80,11 @@ interface Categoria {
     <div class="cp">
       <header class="cp__head">
         <h2>{{ data.title || 'Scegli il conto' }}</h2>
+        @if (puoCreare()) {
+          <button mat-button class="cp__new" type="button" (click)="creaConto()">
+            <mat-icon>add</mat-icon> Nuovo conto
+          </button>
+        }
         <button mat-icon-button (click)="annulla()" aria-label="Chiudi"><mat-icon>close</mat-icon></button>
       </header>
 
@@ -193,7 +214,8 @@ interface Categoria {
        un'altezza concreta su cui calcolare lo scroll → la lista sinistra cresceva e veniva tagliata. */
     .cp { width: min(760px, 92vw); display: flex; flex-direction: column; height: min(80vh, 560px); }
     .cp__head { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 4px 8px; }
-    .cp__head h2 { margin: 0; font-size: 1.1rem; }
+    .cp__head h2 { flex: 1; min-width: 0; margin: 0; font-size: 1.1rem; }
+    .cp__new { flex-shrink: 0; color: var(--primary); }
     .cp__search { display: flex; align-items: center; gap: 8px; margin: 4px 10px 10px; padding: 9px 14px;
       border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
     .cp__search mat-icon { color: var(--text-sub); }
@@ -267,6 +289,11 @@ interface Categoria {
 export class CogePickerDialogComponent {
   readonly data = inject<CogePickerData>(MAT_DIALOG_DATA);
   private readonly ref = inject(MatDialogRef<CogePickerDialogComponent>);
+  private readonly dialog = inject(MatDialog);
+  private readonly auth = inject(AuthService);
+
+  /** Copia locale del piano: un conto creato dal picker entra qui senza ricaricare la pagina. */
+  readonly conti = signal<PianoContiCogeDTO[]>(this.data.conti ?? []);
 
   readonly query = signal('');
   readonly gruppoSel = signal<string | null>(null);
@@ -277,12 +304,13 @@ export class CogePickerDialogComponent {
 
   /** Conti foglia (senza figli) ammessi dal filtro tipo. */
   private readonly foglie = computed<PianoContiCogeDTO[]>(() => {
-    const conti = this.data.conti ?? [];
+    const conti = this.conti();
     const parents = new Set(conti.map(c => c.parentId).filter((x): x is number => x != null));
     const tf = this.data.tipoFilter;
     const allowed = this.data.allowedIds ? new Set(this.data.allowedIds) : null;
     return conti.filter(c =>
-      !parents.has(c.id) && (!tf || tf.includes(c.tipo)) && (!allowed || allowed.has(c.id)));
+      !parents.has(c.id) && (!tf || tf.includes(c.tipo))
+      && (!allowed || allowed.has(c.id) || CREATI_QUI.has(c.id)));
   });
 
   /** Gruppi VIVI (un gruppo senza conti non si mostra: con allowedIds vuoto non ne resta nessuno). */
@@ -302,7 +330,7 @@ export class CogePickerDialogComponent {
    */
   readonly categorie = computed<Categoria[]>(() => {
     const g = this.gruppoSel();
-    const byId = new Map(this.data.conti.map(c => [c.id, c]));
+    const byId = new Map(this.conti().map(c => [c.id, c]));
     const map = new Map<number, Categoria>();
     for (const f of this.foglie()) {
       if (g && gruppoDi(f.tipo) !== g) continue;
@@ -367,10 +395,37 @@ export class CogePickerDialogComponent {
   tipoLabel(tipo: string): string { return TIPO_LABEL[tipo] ?? tipo; }
 
   pathOf(c: PianoContiCogeDTO): string {
-    const byId = new Map(this.data.conti.map(x => [x.id, x]));
+    const byId = new Map(this.conti().map(x => [x.id, x]));
     const parent = c.parentId != null ? byId.get(c.parentId) : undefined;
     const gruppo = labelGruppo(gruppoDi(c.tipo));
     return parent ? `${gruppo} › ${parent.nome}` : gruppo;
+  }
+
+  /** Solo ADMIN: la POST /api/piano-dei-conti è ADMIN-only (PianoContiCogeResource). */
+  readonly puoCreare = computed(() => this.auth.isAdmin());
+
+  creaConto(): void {
+    const tf = this.data.tipoFilter;
+    const unicoTipo = tf?.length === 1 ? (tf[0] as TipoCoge) : undefined;
+    const dati: PianoContiFormData = {
+      conti: this.conti(),
+      presetTipo: unicoTipo,
+      bloccaTipo: unicoTipo != null,   // fuori dal filtro il conto nuovo non sarebbe selezionabile qui
+    };
+    this.dialog
+      .open(PianoContiFormDialogComponent, { data: dati, width: '460px', panelClass: 'pc-dialog-panel', autoFocus: 'first-tabbable' })
+      .afterClosed()
+      .subscribe((creato: PianoContiCogeDTO | boolean | undefined) => {
+        if (!creato || typeof creato === 'boolean') return;   // annullato
+        this.conti.update(list => [...list, creato]);
+        CREATI_QUI.add(creato.id);
+        // Porta l'utente sul conto appena creato, già selezionato: manca solo Conferma.
+        this.query.set('');
+        this.gruppoSel.set(gruppoDi(creato.tipo));
+        this.catSelId.set(this.categorie().find(c => c.conti.some(x => x.id === creato.id))?.id ?? null);
+        this.drill.set(true);
+        this.scelto.set(creato);
+      });
   }
 
   scegli(c: PianoContiCogeDTO): void { this.scelto.set(c); }
