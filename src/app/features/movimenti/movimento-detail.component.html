@@ -63,9 +63,17 @@
                 <mat-icon>call_split</mat-icon> Dividi
               </button>
             }
-            <button mat-stroked-button color="warn" (click)="deleteMovimento()">
-              <mat-icon>delete</mat-icon> Elimina
-            </button>
+            @if (mov.stato !== 'ANNULLATO') {
+              <button mat-stroked-button color="warn" (click)="deleteMovimento()"
+                      matTooltip="Il movimento resta in archivio ma esce da saldi e bilancio">
+                <mat-icon>block</mat-icon> Annulla
+              </button>
+            } @else {
+              <button mat-stroked-button color="warn" (click)="cestinaMovimento()"
+                      matTooltip="Toglie la riga dal database: irreversibile">
+                <mat-icon>delete_forever</mat-icon> Cestina definitivamente
+              </button>
+            }
           }
         </div>
       </div>

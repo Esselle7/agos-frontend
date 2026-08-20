@@ -1,7 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { of } from 'rxjs';
 import { CogePickerDialogComponent, CogePickerData } from './coge-picker-dialog.component';
+import { PianoContiFormData } from '../../../features/piano-conti/piano-conti-form-dialog.component';
 import { PianoContiCogeDTO, TipoCoge } from '../../../core/models/anagrafica.models';
+import { AuthService } from '../../../core/auth/auth.service';
 
 /**
  * Spec coge-01: ogni conto imputabile (= senza figli attivi) è raggiungibile dal picker.
@@ -48,13 +51,29 @@ const PIANO: PianoContiCogeDTO[] = [
   conto(118, '70.01.001', 'IRAP esercizio', 117, 'IMPOSTA'),
 ];
 
+/** Stato del dialog di creazione annidato: cosa risponde, chi sono io, cosa è stato aperto. */
+let admin = true;
+let esitoCreazione: unknown = undefined;
+let apertoCon: PianoContiFormData | undefined;
+
 function creaPicker(data: Partial<CogePickerData> = {}): CogePickerDialogComponent {
   TestBed.resetTestingModule();
+  apertoCon = undefined;
   TestBed.configureTestingModule({
     providers: [
       CogePickerDialogComponent,
       { provide: MAT_DIALOG_DATA, useValue: { conti: PIANO, ...data } as CogePickerData },
       { provide: MatDialogRef, useValue: { close: () => {} } },
+      {
+        provide: MatDialog,
+        useValue: {
+          open: (_c: unknown, config: { data: PianoContiFormData }) => {
+            apertoCon = config.data;
+            return { afterClosed: () => of(esitoCreazione) };
+          },
+        },
+      },
+      { provide: AuthService, useValue: { isAdmin: () => admin } },
     ],
   });
   return TestBed.inject(CogePickerDialogComponent);
@@ -215,5 +234,67 @@ describe('CogePickerDialogComponent — maschera Costi | Ricavi | Altro (coge-02
     expect(picker.gruppoSel()).toBe('RICAVI');
     expect(picker.catSel()?.codice).toBe('30.01');
     expect(picker.scelto()?.id).toBe(31);
+  });
+});
+
+describe('CogePickerDialogComponent — creare un conto senza uscire dal picker', () => {
+
+  const NUOVO = conto(300, '40.15.003', 'Commissioni Glovo', 162);   // foglia nuova sotto 40.15
+
+  beforeEach(() => { admin = true; esitoCreazione = undefined; });
+
+  it('il bottone c\'è per un ADMIN, non per un DIPENDENTE (la POST è ADMIN-only)', () => {
+    expect(creaPicker().puoCreare()).toBe(true);
+    admin = false;
+    expect(creaPicker().puoCreare()).toBe(false);
+  });
+
+  it('il bottone c\'è anche con allowedIds: i chiamanti la calcolano per esclusione, non è un catalogo chiuso', () => {
+    expect(creaPicker({ allowedIds: [98, 161] }).puoCreare()).toBe(true);
+  });
+
+  it('regressione — nello smistamento (allowedIds) il conto creato resta selezionabile', () => {
+    // Com'è nel wizard spese: tutto il piano tranne i ricavi-evento e i due transitori.
+    const ammessi = PIANO.filter(c => !c.codice.startsWith('30.02.')).map(c => c.id);
+    const picker = creaPicker({ allowedIds: ammessi });
+    const creato = conto(301, '40.15.004', 'Commissioni Deliveroo', 162);   // id NON in `ammessi`
+    esitoCreazione = creato;
+    picker.creaConto();
+
+    expect(picker.scelto()?.id).toBe(301);
+    expect(offerti(picker)).toContain(301);
+  });
+
+  it('con tipoFilter a un solo tipo la natura arriva preselezionata e bloccata', () => {
+    creaPicker({ tipoFilter: ['RICAVO'] }).creaConto();
+    expect(apertoCon?.presetTipo).toBe('RICAVO');
+    expect(apertoCon?.bloccaTipo).toBe(true);
+  });
+
+  it('senza filtro di tipo la natura resta libera', () => {
+    creaPicker().creaConto();
+    expect(apertoCon?.presetTipo).toBeUndefined();
+    expect(apertoCon?.bloccaTipo).toBe(false);
+    expect(apertoCon?.conti.length).toBe(PIANO.length);   // il form vede il piano per generare il codice
+  });
+
+  it('il conto creato è selezionato E raggiungibile navigando (non solo scritto in scelto())', () => {
+    const picker = creaPicker();
+    esitoCreazione = NUOVO;
+    picker.creaConto();
+
+    expect(picker.scelto()?.id).toBe(300);
+    expect(picker.catSelId()).toBe(162);                  // aperto sulla categoria del conto nuovo
+    expect(picker.gruppoSel()).toBe('COSTI');
+    // Oracolo ricalcolato: le foglie del piano + la nuova, nessuna persa per strada.
+    expect(offerti(picker)).toEqual(foglieAttese([...PIANO, NUOVO]));
+  });
+
+  it('annullando la creazione la lista e la selezione non cambiano', () => {
+    const picker = creaPicker({ selectedId: 31 });
+    esitoCreazione = undefined;
+    picker.creaConto();
+    expect(picker.scelto()?.id).toBe(31);
+    expect(offerti(picker)).toEqual(foglieAttese(PIANO));
   });
 });

@@ -7,6 +7,11 @@ import { ContatoreImportDTO, ImportKpiDTO } from '../../core/models/movimenti.mo
 export interface ImportCounts {
   /** Righe su conto transitorio: dall'11/08/2026 include anche gli Effetti/RiBa (audit §7.7). */
   catalogare: number;
+  /**
+   * Righe che l'import non ha saputo leggere e che aspettano in coda: finché non c'era questo
+   * contatore, la coda era invisibile al flusso guidato (49 righe ferme il 19/08/2026).
+   */
+  daRileggere: number;
   ricorrenti: number;
   eventi: number;
   /**
@@ -30,7 +35,7 @@ export class ImportCountsService {
   private readonly movimenti = inject(MovimentiService);
 
   readonly kpi = signal<ImportKpiDTO | null>(null);
-  readonly counts = signal<ImportCounts>({ catalogare: 0, ricorrenti: 0, eventi: 0, duplicati: null, matchingDifferiti: 0, scartati: 0 });
+  readonly counts = signal<ImportCounts>({ catalogare: 0, daRileggere: 0, ricorrenti: 0, eventi: 0, duplicati: null, matchingDifferiti: 0, scartati: 0 });
   readonly loading = signal(false);
 
   /** L'import a cui si riferiscono contatore e registro: l'ultimo caricato. */
@@ -58,6 +63,7 @@ export class ImportCountsService {
         this.counts.update(c => ({
           ...c,
           catalogare: b.catalogare,
+          daRileggere: b.daRileggere,
           ricorrenti: b.ricorrenti,
           eventi: b.eventi,
           matchingDifferiti: b.matchingDifferiti,
