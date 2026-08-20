@@ -194,18 +194,43 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
     }
   });
 
-  // Metadati per il badge read-only del tipo flusso in edit mode (icona/label/desc
-  // coerenti con le card di create).
-  readonly flussoMeta = computed(() => {
-    switch (this.tipoFlusso()) {
-      case 'differito':
-        return { icon: 'schedule',   label: 'Economico con incasso differito', desc: 'Il ricavo/costo è ora, la cassa arriva dopo' };
-      case 'soloFinanziario':
-        return { icon: 'swap_horiz', label: 'Solo finanziario',                desc: 'Nessun impatto EBITDA' };
-      default:
-        return { icon: 'flash_on',   label: 'Movimento immediato',             desc: 'Economico e finanziario coincidono' };
-    }
+  /**
+   * Testi delle tre schede del passo 1, in UNA mappa `flusso × tipo`: con i ternari sparsi nel
+   * template ci si dimentica sempre metà dei casi. Il resto del form parla già questa lingua
+   * («Già incassato / Già pagato», «Scadenza incasso / Scadenza pagamento»): qui la si estende.
+   *
+   * Legge `_tipo()`, il signal specchio del FormControl: un computed che leggesse
+   * `FormControl.value` resterebbe congelato sotto OnPush (trappola già vista nel progetto).
+   */
+  readonly schedeFlusso = computed(() => {
+    const uscita = this._tipo() === 'USCITA';
+    return {
+      immediato: {
+        icon: 'flash_on',
+        label: 'Movimento immediato',
+        desc: 'Economico e finanziario coincidono',
+        esempio: uscita ? 'es. Pagamento effettuato oggi' : 'es. Pagamento ricevuto oggi',
+      },
+      differito: {
+        icon: 'schedule',
+        label: uscita ? 'Economico con pagamento differito' : 'Economico con incasso differito',
+        desc: uscita ? "Il costo è ora, l'uscita di cassa arriva dopo"
+                     : 'Il ricavo è ora, la cassa arriva dopo',
+        esempio: uscita ? 'es. Fattura ricevuta, pagamento a 60gg'
+                        : 'es. Fattura emessa, incasso tra 90gg',
+      },
+      soloFinanziario: {
+        icon: 'swap_horiz',
+        label: 'Solo finanziario',
+        desc: 'Nessun impatto EBITDA',
+        // Nessuna versione costo/ricavo: un giroconto è lo stesso nei due sensi.
+        esempio: 'es. Giroconto, rettifica cassa',
+      },
+    };
   });
+
+  // Metadati del tipo flusso scelto: badge read-only in edit mode e riga «Tipo» della revisione.
+  readonly flussoMeta = computed(() => this.schedeFlusso()[this.tipoFlusso()]);
 
   // Toggle incassato/nonIncassato: visibile solo per 'differito'.
   // In edit mode, se il movimento era già liquidato, lo stato è bloccato
