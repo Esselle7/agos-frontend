@@ -47,6 +47,15 @@ export type DateField = 'MOVIMENTO' | 'FINANZIARIA' | 'LIQUIDITA';
  * Ogni dimensione è un array: i valori vanno in OR fra loro, le dimensioni in AND.
  * `contoId: 0` è la sentinella per «senza banca» (conto_bancario_id IS NULL).
  */
+/** Una quota della divisione di un movimento cumulativo (spec riba-split-importo). */
+export interface QuotaDivisione {
+  importo: number;
+  contoCogeId: number;
+  businessUnitId: number;
+  fornitoreId?: string | null;
+  descrizione?: string | null;
+}
+
 export interface MovimentiFilter {
   from?: string;
   to?: string;
@@ -174,6 +183,17 @@ export class MovimentiService {
     return this.http.patch<MovimentoDTO>(
       environment.apiBaseUrl + API_PATHS.MOVIMENTI.LIQUIDA(id),
       { contoBancarioId, metodoPagamentoId: metodoPagamentoId ?? null }
+    );
+  }
+
+  /**
+   * Divide un movimento cumulativo (RiBa/effetti) in N quote — spec riba-split-importo.
+   * La quadratura la verifica il server: qui non si arrotonda niente.
+   */
+  dividi(id: string, quote: QuotaDivisione[]): Observable<MovimentoDTO[]> {
+    return this.http.post<MovimentoDTO[]>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.DIVIDI(id),
+      { quote }
     );
   }
 

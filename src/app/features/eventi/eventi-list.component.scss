@@ -49,6 +49,10 @@
     font-size: 13px;
     color: var(--text-sub);
     margin: 0 0 12px;
+
+    .result-count__hint {
+      opacity: 0.75;
+    }
   }
 
   .cards-grid {
@@ -101,6 +105,21 @@
         padding: 2px 10px;
         border-radius: 999px;
         border: 1px solid;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        width: fit-content;
+      }
+
+      // Passato e non saldato: è l'unica riga che chiede un'azione, e sta in cima alla Lista.
+      .badge-da-chiudere {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+        background: color-mix(in srgb, var(--warning) 12%, transparent);
+        color: var(--warning);
         font-size: 11px;
         font-weight: 600;
         letter-spacing: 0.4px;

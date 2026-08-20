@@ -1,6 +1,8 @@
 import {
   Component,
+  EventEmitter,
   Input,
+  Output,
   OnInit,
   OnChanges,
   OnDestroy,
@@ -77,6 +79,19 @@ const STATI: { value: StatoEvento | ''; label: string }[] = [
 export class EventiListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() refresh = 0;
 
+  /**
+   * Quale metà del modulo mostra questa istanza. La partizione è decisa dal server
+   * (`vista` sull'endpoint): la pagina è di 20 righe, riordinare o filtrare qui darebbe
+   * un ordine e un conteggio falsi.
+   */
+  @Input() vista: 'LISTA' | 'STORICO' = 'LISTA';
+
+  /** Totale della scheda, per scriverlo nell'etichetta del tab. */
+  @Output() totaleCambiato = new EventEmitter<number>();
+
+  /** L'utente ha chiesto i saldati stando nella Lista: si va nella scheda giusta. */
+  @Output() vaiAlloStorico = new EventEmitter<void>();
+
   private readonly eventiService = inject(EventiService);
   private readonly buService = inject(BuService);
   readonly authService = inject(AuthService);
@@ -86,8 +101,13 @@ export class EventiListComponent implements OnInit, OnChanges, OnDestroy {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroy$ = new Subject<void>();
 
-  readonly stati = STATI;
   readonly statoColors = STATO_COLORS;
+
+  /**
+   * Nello Storico ogni riga è SALDATO: un filtro per stato lì non filtra niente, quindi
+   * la barra dei chip sparisce del tutto invece di restare a fare da decorazione.
+   */
+  get stati() { return this.vista === 'STORICO' ? [] : STATI; }
 
   result = signal<PagedResponse<EventoDTO> | null>(null);
   loading = signal(false);
@@ -138,6 +158,7 @@ export class EventiListComponent implements OnInit, OnChanges, OnDestroy {
     const filter: EventiFilter = {
       page: this.currentPage,
       size: this.pageSize,
+      vista: this.vista,
     };
     const search = this.searchControl.value.trim();
     if (search) filter.search = search;
@@ -154,6 +175,7 @@ export class EventiListComponent implements OnInit, OnChanges, OnDestroy {
       next: res => {
         this.result.set(res);
         this.loading.set(false);
+        this.totaleCambiato.emit(res.totalElements);
         this.cdr.markForCheck();
       },
       error: () => {
@@ -165,6 +187,11 @@ export class EventiListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   selectStato(stato: StatoEvento | ''): void {
+    // I saldati non abitano qui: invece di una lista vuota senza spiegazione, si cambia scheda.
+    if (this.vista === 'LISTA' && stato === 'SALDATO') {
+      this.vaiAlloStorico.emit();
+      return;
+    }
     this.selectedStato.set(stato);
     this.currentPage = 0;
     this.loadData();
@@ -234,6 +261,22 @@ export class EventiListComponent implements OnInit, OnChanges, OnDestroy {
         });
       });
   }
+
+  /**
+   * Evento già passato e non ancora saldato: è l'unica riga che chiede un'azione, per questo
+   * sta in cima alla Lista. Il confronto è su stringhe ISO (`aaaa-mm-gg`), che si ordinano
+   * come le date senza costruire un Date e senza portarsi dietro il fuso del browser.
+   */
+  daChiudere(evento: EventoDTO): boolean {
+    return this.vista === 'LISTA'
+        && !!evento.dataEvento
+        && evento.dataEvento < this.oggiIso
+        && evento.stato !== 'SALDATO';
+  }
+
+  /** ponytail: calcolato all'apertura della pagina, non a ogni riga. Chi la lascia aperta oltre
+   *  la mezzanotte vede il badge di ieri fino al refresh — non vale un timer. */
+  private readonly oggiIso = this.toIso(new Date());
 
   statoColor(stato: StatoEvento): string {
     return STATO_COLORS[stato] ?? '#9E9E9E';

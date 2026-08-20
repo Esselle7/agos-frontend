@@ -44,6 +44,7 @@ export const API_PATHS = {
   MOVIMENTI: {
     BASE:             '/api/movimenti',
     SOMMARIO:         '/api/movimenti/sommario',
+    DIVIDI:           (id: string) => `/api/movimenti/${id}/dividi`,
     BULK:             '/api/movimenti/bulk',
     IMPORT_CONGIUNTO: '/api/movimenti/import/congiunto',
     IMPORT_HISTORY:   '/api/movimenti/import/history',

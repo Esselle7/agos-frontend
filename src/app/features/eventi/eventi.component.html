@@ -12,7 +12,8 @@
     }
   </div>
 
-  <mat-tab-group animationDuration="200ms">
+  <mat-tab-group animationDuration="200ms"
+                 [selectedIndex]="tabAttivo()" (selectedIndexChange)="tabAttivo.set($event)">
     @if (!auth.isAdmin()) {
       <mat-tab label="I Miei">
         <div class="tab-content">
@@ -20,9 +21,17 @@
         </div>
       </mat-tab>
     }
-    <mat-tab label="Tutti gli eventi">
+    <mat-tab [label]="etichetta('Lista', totaleLista())">
       <div class="tab-content">
-        <app-eventi-list [refresh]="refreshTrigger()" />
+        <app-eventi-list vista="LISTA" [refresh]="refreshTrigger()"
+                         (totaleCambiato)="totaleLista.set($event)"
+                         (vaiAlloStorico)="vaiAlloStorico()" />
+      </div>
+    </mat-tab>
+    <mat-tab [label]="etichetta('Storico', totaleStorico())">
+      <div class="tab-content">
+        <app-eventi-list vista="STORICO" [refresh]="refreshTrigger()"
+                         (totaleCambiato)="totaleStorico.set($event)" />
       </div>
     </mat-tab>
     <mat-tab label="Calendario">

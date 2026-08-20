@@ -2,7 +2,8 @@
 
   <!-- Toolbar filtri -->
   <div class="filters-bar">
-    <!-- Chip group stati -->
+    <!-- Chip group stati (vuoto nello Storico: là ogni riga è SALDATO) -->
+    @if (stati.length) {
     <div class="stato-chips">
       @for (s of stati; track s.value) {
         <button
@@ -15,6 +16,7 @@
         </button>
       }
     </div>
+    }
 
     <!-- Ricerca -->
     <mat-form-field appearance="outline" class="search-field">
@@ -46,7 +48,11 @@
 
   <!-- Contatore -->
   @if (result(); as r) {
-    <p class="result-count">{{ r.totalElements }} eventi trovati</p>
+    <p class="result-count">
+      {{ r.totalElements }} eventi trovati
+      @if (vista === 'STORICO') { <span class="result-count__hint">— la ricerca guarda solo lo Storico</span> }
+      @else { <span class="result-count__hint">— gli eventi saldati stanno nella scheda Storico</span> }
+    </p>
   }
 
   <!-- Skeleton loader -->
@@ -83,6 +89,11 @@
                 >
                   {{ evento.stato }}
                 </span>
+                @if (daChiudere(evento)) {
+                  <span class="badge-da-chiudere" matTooltip="Data passata e non ancora saldato">
+                    da chiudere
+                  </span>
+                }
               </div>
               <span class="evento-data">{{ formatDate(evento.dataEvento) }}</span>
             </div>

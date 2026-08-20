@@ -23,19 +23,37 @@ const TIPO_COLOR: Record<string, string> = {
   PASSIVITA: '#92400E', ONERE_FINANZIARIO: '#7C3AED', IMPOSTA: '#6B7280',
 };
 
+/**
+ * Primo livello della maschera (spec coge-02). È un raggruppamento di sola PRESENTAZIONE:
+ * «Altro» non è un tipo del dominio, e chi apre il picker continua a filtrare per `tipo`.
+ */
+const GRUPPI = [
+  { key: 'COSTI', label: 'Costi', color: TIPO_COLOR['COSTO'] },
+  { key: 'RICAVI', label: 'Ricavi', color: TIPO_COLOR['RICAVO'] },
+  { key: 'ALTRO', label: 'Altro', color: '#6B7280' },
+];
+/** Un tipo non mappato (o nuovo in `lk_tipi_coge`) finisce in «Altro», mai fuori dalla lista. */
+function gruppoDi(tipo: string): string {
+  return tipo === 'COSTO' ? 'COSTI' : tipo === 'RICAVO' ? 'RICAVI' : 'ALTRO';
+}
+function labelGruppo(key: string): string {
+  return GRUPPI.find(g => g.key === key)?.label ?? key;
+}
+
 interface Categoria {
   id: number;
   codice: string;
   descrizione: string;
+  /** Nome del mastro di livello 1 (es. «INVESTIMENTI (CAPEX)»): distingue 50.* dai costi di P&L. */
+  padre: string;
   tipo: string;
   conti: PianoContiCogeDTO[];
 }
 
 /**
- * Selettore Conto COGE a due pannelli (categorie | conti). Stessa scelta finale di prima
- * (un conto del piano) ma con navigazione gerarchica + ricerca + recenti: nessuna perdita
- * funzionale, solo UI. Ritorna il {@link PianoContiCogeDTO} scelto (o {@code undefined} se annulla,
- * {@code null} per "rimuovi").
+ * Selettore Conto COGE a tre livelli (gruppo Costi|Ricavi|Altro → categoria → conto). Stessa scelta
+ * finale di prima (un conto del piano) e stesso valore emesso: il {@link PianoContiCogeDTO} scelto,
+ * {@code null} per "rimuovi", {@code undefined} se annulla. Nessun chiamante cambia.
  */
 @Component({
   selector: 'app-coge-picker-dialog',
@@ -58,7 +76,7 @@ interface Categoria {
         }
       </div>
 
-      <!-- Recenti -->
+      <!-- Recenti: sopra i gruppi e NON filtrati dal gruppo attivo (R5) -->
       @if (!query() && recentiConti().length) {
         <div class="cp__recents">
           <span class="cp__recents-lbl">Recenti</span>
@@ -72,9 +90,22 @@ interface Categoria {
         </div>
       }
 
+      <!-- Primo livello: la scelta grossa. Con un solo gruppo vivo (es. tipoFilter=['RICAVO']) sparisce (R2) -->
+      @if (!query() && gruppi().length > 1) {
+        <div class="cp__groups" role="group" aria-label="Gruppo di conti">
+          @for (g of gruppi(); track g.key) {
+            <button class="cp__group" type="button" [class.cp__group--on]="g.key === gruppoSel()"
+                    [attr.aria-pressed]="g.key === gruppoSel()" (click)="selGruppo(g.key)">
+              <span class="cp__group-dot" [style.background]="g.color"></span>{{ g.label }}
+              <span class="cp__group-count">{{ g.n }}</span>
+            </button>
+          }
+        </div>
+      }
+
       <div class="cp__body">
         @if (query()) {
-          <!-- Ricerca: lista piatta con percorso -->
+          <!-- Ricerca: GLOBALE su tutti i gruppi, con il gruppo nel percorso (R4) -->
           <div class="cp__results">
             @if (!risultati().length) {
               <p class="cp__empty">Nessun conto per «{{ query() }}».</p>
@@ -92,25 +123,41 @@ interface Categoria {
               </button>
             }
           </div>
+        } @else if (!gruppi().length) {
+          <p class="cp__empty">Nessun conto disponibile.</p>
         } @else {
-          <!-- Due pannelli: categorie | conti -->
-          <div class="cp__panes">
+          <!-- Due pannelli: categorie del gruppo | conti della categoria -->
+          <div class="cp__panes" [class.cp__panes--drill]="drill()">
             <div class="cp__cats">
               @for (cat of categorie(); track cat.id) {
-                <button class="cp__cat" type="button"
-                        [class.cp__cat--on]="cat.id === catSelId()"
-                        [title]="cat.descrizione + ' (' + cat.codice + ')'"
-                        (click)="catSelId.set(cat.id)">
-                  <span class="cp__cat-dot" [style.background]="color(cat.tipo)"></span>
-                  <span class="cp__cat-main">
-                    <span class="cp__cat-name">{{ cat.descrizione }}</span>
-                    <span class="cp__cat-meta">{{ tipoLabel(cat.tipo) }} · {{ cat.codice }}</span>
-                  </span>
-                  <span class="cp__cat-count">{{ cat.conti.length }}</span>
-                </button>
+                @if (cat.conti.length > 1) {
+                  <button class="cp__cat" type="button"
+                          [class.cp__cat--on]="cat.id === catSelId()"
+                          [title]="cat.descrizione + ' (' + cat.codice + ')'"
+                          (click)="apriCat(cat)">
+                    <span class="cp__cat-dot" [style.background]="color(cat.tipo)"></span>
+                    <span class="cp__cat-main">
+                      <span class="cp__cat-name">{{ cat.descrizione }}</span>
+                      <span class="cp__cat-meta">{{ cat.padre || tipoLabel(cat.tipo) }} · {{ cat.codice }}</span>
+                    </span>
+                    <span class="cp__cat-count">{{ cat.conti.length }}</span>
+                  </button>
+                } @else {
+                  <!-- Categoria con una sola foglia (o conto radice): voce diretta, non un click sprecato (R3/R1b) -->
+                  <button class="cp__leaf" type="button"
+                          [class.cp__leaf--on]="cat.conti[0].id === scelto()?.id"
+                          (click)="scegli(cat.conti[0])" (dblclick)="conferma()">
+                    <span class="cp__radio" [class.cp__radio--on]="cat.conti[0].id === scelto()?.id"></span>
+                    <span class="cp__leaf-name">{{ cat.conti[0].nome }}</span>
+                    <span class="cp__code">{{ cat.conti[0].codice }}</span>
+                  </button>
+                }
               }
             </div>
             <div class="cp__leaves">
+              <button class="cp__back" type="button" (click)="drill.set(false)">
+                <mat-icon>chevron_left</mat-icon>{{ catSel()?.descrizione || 'Indietro' }}
+              </button>
               @if (!catSel()) {
                 <p class="cp__empty">Scegli una categoria a sinistra.</p>
               }
@@ -132,7 +179,7 @@ interface Categoria {
         @if (data.selectedId != null) {
           <button mat-button class="cp__remove" (click)="rimuovi()">Rimuovi</button>
         }
-        <span class="cp__sel">
+        <span class="cp__sel" aria-live="polite">
           @if (scelto()) { <b>{{ scelto()!.nome }}</b> <span class="cp__code">{{ scelto()!.codice }}</span> }
           @else { Nessun conto selezionato }
         </span>
@@ -159,6 +206,16 @@ interface Categoria {
     .cp__chip:hover { background: color-mix(in srgb, var(--primary) 7%, transparent); }
     .cp__chip--on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
     .cp__chip-dot { width: 8px; height: 8px; border-radius: 50%; }
+    /* wrap: su schermo stretto il terzo gruppo va a capo invece di essere tagliato fuori dal dialog */
+    .cp__groups { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 10px 10px; }
+    .cp__group { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 12px;
+      border: 1px solid var(--border); border-radius: 12px; background: var(--card); cursor: pointer; font: inherit;
+      font-size: .9rem; font-weight: 600; color: var(--text-main); transition: background .14s, border-color .14s; }
+    .cp__group:hover { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+    .cp__group--on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+    .cp__group-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .cp__group-count { font-size: .75rem; font-weight: 700; color: var(--text-sub); background: var(--surface);
+      padding: 1px 7px; border-radius: 999px; }
     .cp__body { flex: 1 1 auto; min-height: 0; overflow: hidden; border-top: 1px solid var(--border); }
     /* minmax(0,1fr): le colonne possono restringersi → l'ellissi dei nomi lunghi funziona e il layout non spancia */
     .cp__panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); height: 100%; min-height: 0; }
@@ -166,6 +223,9 @@ interface Categoria {
     .cp__cats { overflow-y: auto; min-height: 0; border-right: 1px solid var(--border); padding: 6px; }
     .cp__leaves, .cp__results { overflow-y: auto; min-height: 0; padding: 6px; }
     .cp__results { max-height: 56vh; }
+    .cp__back { display: none; align-items: center; gap: 2px; width: 100%; padding: 8px 6px; margin-bottom: 4px;
+      border: none; border-bottom: 1px solid var(--border); background: transparent; cursor: pointer; font: inherit;
+      font-size: .82rem; font-weight: 600; color: var(--primary); text-align: left; }
     .cp__cat { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: none;
       background: transparent; border-radius: 12px; cursor: pointer; text-align: left; font: inherit; transition: background .12s; }
     .cp__cat:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
@@ -173,7 +233,7 @@ interface Categoria {
     .cp__cat-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
     .cp__cat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .cp__cat-name { font-size: .9rem; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .cp__cat-meta { font-size: .72rem; color: var(--text-sub); }
+    .cp__cat-meta { font-size: .72rem; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cp__cat-count { flex-shrink: 0; font-size: .75rem; font-weight: 700; color: var(--text-sub); background: var(--surface);
       min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
     .cp__leaf { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: none;
@@ -192,7 +252,16 @@ interface Categoria {
     .cp__sel { flex: 1; min-width: 0; font-size: .82rem; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cp__sel b { color: var(--text-main); }
     .cp__remove { color: #b23b2e !important; }
-    @media (max-width: 560px) { .cp__panes { grid-template-columns: 1fr; } .cp__cats { display: none; } }
+    /* Stretto: un pannello per volta (prima le categorie sparivano del tutto → navigazione impossibile). */
+    @media (max-width: 560px) {
+      .cp__panes { grid-template-columns: 1fr; }
+      .cp__cats { border-right: none; }
+      .cp__panes--drill .cp__cats { display: none; }
+      .cp__panes:not(.cp__panes--drill) .cp__leaves { display: none; }
+      .cp__back { display: flex; }
+      .cp__groups { gap: 6px; padding: 0 8px 8px; }
+      .cp__group { padding: 8px 10px; gap: 6px; font-size: .84rem; }
+    }
   `],
 })
 export class CogePickerDialogComponent {
@@ -200,7 +269,10 @@ export class CogePickerDialogComponent {
   private readonly ref = inject(MatDialogRef<CogePickerDialogComponent>);
 
   readonly query = signal('');
+  readonly gruppoSel = signal<string | null>(null);
   readonly catSelId = signal<number | null>(null);
+  /** Solo ≤560px: true = pannello conti a schermo, false = pannello categorie. */
+  readonly drill = signal(false);
   readonly scelto = signal<PianoContiCogeDTO | undefined>(undefined);
 
   /** Conti foglia (senza figli) ammessi dal filtro tipo. */
@@ -213,17 +285,35 @@ export class CogePickerDialogComponent {
       !parents.has(c.id) && (!tf || tf.includes(c.tipo)) && (!allowed || allowed.has(c.id)));
   });
 
+  /** Gruppi VIVI (un gruppo senza conti non si mostra: con allowedIds vuoto non ne resta nessuno). */
+  readonly gruppi = computed(() => {
+    const n = new Map<string, number>();
+    for (const f of this.foglie()) {
+      const k = gruppoDi(f.tipo);
+      n.set(k, (n.get(k) ?? 0) + 1);
+    }
+    return GRUPPI.filter(g => n.has(g.key)).map(g => ({ ...g, n: n.get(g.key)! }));
+  });
+
+  /**
+   * Categorie del gruppo attivo. Un conto radice (senza parent) non finisce in una pseudo-categoria
+   * «Altri» condivisa — che ordinata per codice vuoto compariva PRIMA di tutto — ma diventa una voce
+   * a sé, ordinata per il proprio codice.
+   */
   readonly categorie = computed<Categoria[]>(() => {
+    const g = this.gruppoSel();
     const byId = new Map(this.data.conti.map(c => [c.id, c]));
     const map = new Map<number, Categoria>();
     for (const f of this.foglie()) {
+      if (g && gruppoDi(f.tipo) !== g) continue;
       const parent = f.parentId != null ? byId.get(f.parentId) : undefined;
-      const key = parent ? parent.id : -1;
+      const key = parent ? parent.id : -f.id;
       let cat = map.get(key);
       if (!cat) {
+        const nonno = parent?.parentId != null ? byId.get(parent.parentId) : undefined;
         cat = parent
-          ? { id: parent.id, codice: parent.codice, descrizione: parent.nome, tipo: f.tipo, conti: [] }
-          : { id: -1, codice: '', descrizione: 'Altri', tipo: f.tipo, conti: [] };
+          ? { id: parent.id, codice: parent.codice, descrizione: parent.nome, padre: nonno?.nome ?? '', tipo: f.tipo, conti: [] }
+          : { id: -f.id, codice: f.codice, descrizione: f.nome, padre: '', tipo: f.tipo, conti: [] };
         map.set(key, cat);
       }
       cat.conti.push(f);
@@ -234,6 +324,7 @@ export class CogePickerDialogComponent {
   readonly catSel = computed<Categoria | undefined>(() =>
     this.categorie().find(c => c.id === this.catSelId()));
 
+  /** Ricerca GLOBALE: non guarda il gruppo attivo. */
   readonly risultati = computed<PianoContiCogeDTO[]>(() => {
     const q = this.query().toLowerCase().trim();
     if (!q) return [];
@@ -250,19 +341,27 @@ export class CogePickerDialogComponent {
   });
 
   constructor() {
-    // Preseleziona categoria/conto correnti.
+    // Preseleziona gruppo/categoria/conto correnti.
     const sel = this.data.selectedId;
-    if (sel != null) {
-      const conto = this.foglie().find(c => c.id === sel);
-      if (conto) {
-        this.scelto.set(conto);
-        this.catSelId.set(conto.parentId ?? -1);
-      }
-    }
-    if (this.catSelId() == null && this.categorie().length) {
-      this.catSelId.set(this.categorie()[0].id);
-    }
+    const conto = sel != null ? this.foglie().find(c => c.id === sel) : undefined;
+    if (conto) this.scelto.set(conto);
+    this.gruppoSel.set(conto ? gruppoDi(conto.tipo) : (this.gruppi()[0]?.key ?? null));
+    this.catSelId.set(this.categoriaDiPartenza(conto)?.id ?? null);
   }
+
+  /** Prima categoria apribile del gruppo: quella del conto selezionato, altrimenti la prima. */
+  private categoriaDiPartenza(conto?: PianoContiCogeDTO): Categoria | undefined {
+    const apribili = this.categorie().filter(c => c.conti.length > 1);
+    return (conto && apribili.find(c => c.conti.some(x => x.id === conto.id))) ?? apribili[0];
+  }
+
+  selGruppo(key: string): void {
+    this.gruppoSel.set(key);
+    this.drill.set(false);
+    this.catSelId.set(this.categoriaDiPartenza()?.id ?? null);
+  }
+
+  apriCat(cat: Categoria): void { this.catSelId.set(cat.id); this.drill.set(true); }
 
   color(tipo: string): string { return TIPO_COLOR[tipo] ?? '#6B7280'; }
   tipoLabel(tipo: string): string { return TIPO_LABEL[tipo] ?? tipo; }
@@ -270,7 +369,8 @@ export class CogePickerDialogComponent {
   pathOf(c: PianoContiCogeDTO): string {
     const byId = new Map(this.data.conti.map(x => [x.id, x]));
     const parent = c.parentId != null ? byId.get(c.parentId) : undefined;
-    return parent ? `${this.tipoLabel(c.tipo)} › ${parent.nome}` : this.tipoLabel(c.tipo);
+    const gruppo = labelGruppo(gruppoDi(c.tipo));
+    return parent ? `${gruppo} › ${parent.nome}` : gruppo;
   }
 
   scegli(c: PianoContiCogeDTO): void { this.scelto.set(c); }
