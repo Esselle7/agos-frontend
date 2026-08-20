@@ -300,7 +300,18 @@ export interface ClassificaTransitorioRequest {
   businessUnitId: number;
   fornitoreId: string | null;
   apprendiKeyword: boolean;
+  /**
+   * Le firme che l'operatore ha davvero approvato, dopo aver spento i token di troppo.
+   * Se valorizzato VINCE su `apprendiKeyword`; `null` = il server se le estrae da solo (percorso
+   * storico); `[]` = questa volta non si impara niente. I token si possono solo togliere: il
+   * server rifiuta con 400 un token che non sta nella causale.
+   */
+  firme?: FirmaSceltaDTO[] | null;
   nota: string | null;
+}
+
+export interface FirmaSceltaDTO {
+  token: string[];
 }
 
 // ── Quadratura di periodo POS (Billy = verità) ──────────────────────────────

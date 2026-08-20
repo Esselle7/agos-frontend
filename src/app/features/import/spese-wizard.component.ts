@@ -5,12 +5,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { forkJoin } from 'rxjs';
 
 import { MovimentiService } from '../../core/services/movimenti.service';
 import { LookupService } from '../../core/services/lookup.service';
 import { BuService } from '../../core/services/bu.service';
-import { TransitorioDTO } from '../../core/models/movimenti.models';
+import { TransitorioDTO, FirmaSceltaDTO } from '../../core/models/movimenti.models';
 import { PianoContiCogeDTO, BusinessUnitDTO } from '../../core/models/anagrafica.models';
 import { CogePickerComponent } from '../../shared/components/coge-picker/coge-picker.component';
 import { HelpNoteComponent } from '../../shared/components/help-note/help-note.component';
@@ -241,6 +242,16 @@ interface Gruppo {
               <mat-icon>event_repeat</mat-icon>
               <span class="wz__voce-txt"><b>È una rata</b><small>lo collegherai a un piano</small></span>
             </button>
+            <!-- R8 della spec riba-split-importo: una RiBa cumulativa non è UNA spesa, sono N.
+                 La riga è già un movimento (sta sul transitorio), quindi si divide con lo stesso
+                 motore del dettaglio movimento — nessuna seconda strada che scrive denaro. -->
+            @if (righeScelte().length === 1 && candidataDivisione(righeScelte()[0])) {
+              <button type="button" class="wz__voce wz__voce--stretta"
+                      [disabled]="salvando()" (click)="apriDivisione(righeScelte()[0])">
+                <mat-icon>call_split</mat-icon>
+                <span class="wz__voce-txt"><b>È una RiBa cumulativa</b><small>la dividi in più movimenti</small></span>
+              </button>
+            }
           </div>
 
           @if (spostaVerso(); as dest) {
@@ -315,15 +326,53 @@ interface Gruppo {
                   <mat-icon aria-hidden="true">bolt</mat-icon>
                   <span>
                     @if (imparo()) { Imparerò: } @else { <s>Imparerei:</s> }
-                    @for (f of g.righe[0].firmeDaImparare; track $index) {
-                      <span class="wz__kw" [class.wz__kw--off]="!imparo()"
-                            [class.wz__kw--dom]="f.natura === 'DOMINIO'">{{ f.token.join(' + ') }}</span>
+                    <!-- fi esplicito: dentro il @for interno lo $index è quello del TOKEN e
+                         ombreggia quello della firma. Con la chiave sbagliata i chip si spengono a
+                         schermo ma la firma inviata resta intera — il placebo che questa feature
+                         doveva impedire (preso dall'e2e il 19/08/2026). -->
+                    @for (f of g.righe[0].firmeDaImparare; track $index; let fi = $index) {
+                      <span class="wz__firma">
+                        @for (t of f.token; track t) {
+                          <button type="button" class="wz__kw"
+                                  [class.wz__kw--off]="!imparo() || !acceso(fi, t)"
+                                  [class.wz__kw--dom]="f.natura === 'DOMINIO'"
+                                  [disabled]="!imparo()"
+                                  [attr.aria-pressed]="acceso(fi, t)"
+                                  (click)="togliMetti(fi, t)">{{ t }}</button>
+                        }
+                      </span>
                     }
                     <small>{{ imparo()
-                      ? 'così la prossima riga simile la catalogo da solo'
+                      ? 'clicca una parola per toglierla; così la prossima riga simile la catalogo da solo'
                       : 'questa volta non imparo niente: la catalogo e basta' }}</small>
                   </span>
                 </p>
+                @if (imparo() && keywordModificate()) {
+                  <p class="wz__impara-avviso">
+                    <mat-icon aria-hidden="true">expand</mat-icon>
+                    <span>Togliendo parole la firma diventa <b>più larga</b>: prenderà anche righe
+                      che oggi non prende (il riconoscimento chiede che ci siano <i>tutte</i> le
+                      parole rimaste).
+                      @if (firmeMonoToken().length) {
+                        <b> Con la sola parola «{{ firmeMonoToken().join('», «') }}» prenderà
+                        qualunque riga che la contenga</b> — assicurati che basti a riconoscere
+                        questo fornitore e nessun altro.
+                      }
+                      @if (righeScelte().length > 1) {
+                        Le altre {{ righeScelte().length - 1 }} righe del gruppo hanno causali
+                        diverse: le sistemo, ma <b>da loro non imparo niente</b> — imparerei
+                        qualcosa che non hai visto.
+                      }
+                    </span>
+                  </p>
+                }
+                @if (imparo() && !firmeScelte().length) {
+                  <p class="wz__impara-avviso">
+                    <mat-icon aria-hidden="true">block</mat-icon>
+                    <span>Hai spento tutto: <b>questa volta non imparo niente</b>, la catalogo e
+                      basta.</span>
+                  </p>
+                }
                 <label class="wz__impara-no">
                   <mat-checkbox [checked]="!imparo()"
                                 (change)="imparo.set(!$event.checked)"></mat-checkbox>
@@ -476,6 +525,14 @@ interface Gruppo {
       font-size: .78rem; font-weight: 600; font-family: ui-monospace, 'Courier New', monospace; }
     .wz__kw--dom { background: var(--tint-info); }
     .wz__kw--off { background: var(--surface-2); color: var(--text-faint); text-decoration: line-through; }
+    .wz__kw { border: 1px solid transparent; font: inherit; cursor: pointer; }
+    .wz__kw:hover:not(:disabled) { border-color: var(--text-faint); }
+    .wz__kw:disabled { cursor: default; }
+    .wz__firma { display: inline-block; margin-right: 10px; }
+    .wz__firma + .wz__firma::before { content: '·'; margin-right: 8px; color: var(--text-faint); }
+    .wz__impara-avviso { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0 0;
+      font-size: .82rem; color: var(--text-muted); }
+    .wz__impara-avviso mat-icon { font-size: 16px; width: 16px; height: 16px; }
     .wz__impara-no { display: flex; align-items: center; gap: 4px; margin-top: 4px;
       font-size: .8rem; color: var(--text-faint); cursor: pointer; }
 
@@ -527,6 +584,7 @@ export class SpeseWizardComponent implements OnInit {
   private readonly buService = inject(BuService);
   private readonly counts = inject(ImportCountsService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
 
   readonly loading = signal(true);
   readonly caricamentoFallito = signal(false);
@@ -559,6 +617,11 @@ export class SpeseWizardComponent implements OnInit {
   readonly buScelta = signal<number | null>(null);
   /** Se imparare le firme da questa riga. Default sì — è il comportamento che c'era già. */
   readonly imparo = signal(true);
+  /**
+   * I token spenti a mano, come `indiceFirma|TOKEN`. Vuoto = firme intatte, e allora al server non
+   * si manda `firme` affatto: il percorso automatico resta quello di sempre, byte per byte.
+   */
+  private readonly spenti = signal<ReadonlySet<string>>(new Set());
   /** Righe gemelle escluse a mano (id → false). Di default il gruppo si sistema intero. */
   readonly insieme = signal<Record<string, boolean>>({});
 
@@ -758,6 +821,64 @@ export class SpeseWizardComponent implements OnInit {
     this.avanti();
   }
 
+  acceso(firma: number, token: string): boolean {
+    return !this.spenti().has(firma + '|' + token);
+  }
+
+  /**
+   * Un click spegne/riaccende una parola della firma. Solo togliere: aggiungere parole che non
+   * stanno nella causale darebbe una firma che non scatta mai (il match è in AND).
+   */
+  togliMetti(firma: number, token: string): void {
+    const k = firma + '|' + token;
+    this.spenti.update(s => {
+      const next = new Set(s);
+      if (!next.delete(k)) next.add(k);
+      return next;
+    });
+  }
+
+  /** Le firme come restano dopo le sforbiciate: quelle svuotate del tutto non si imparano. */
+  readonly firmeScelte = computed<FirmaSceltaDTO[]>(() => {
+    const g = this.corrente();
+    if (!g) return [];
+    const off = this.spenti();
+    return g.righe[0].firmeDaImparare
+      .map((f, i) => ({ token: f.token.filter(t => !off.has(i + '|' + t)) }))
+      .filter(f => f.token.length > 0);
+  });
+
+  readonly keywordModificate = computed(() => this.spenti().size > 0);
+
+  /**
+   * Riga che vale la pena proporre di dividere: effetti/RiBa. Qui si ha la causale già normalizzata
+   * in `descrizione` (il DTO del transitorio non porta il codice causale della banca), quindi il
+   * riconoscimento è lessicale — ed è un SUGGERIMENTO: si può dividere qualunque movimento dal suo
+   * dettaglio, e si può lasciare intera una RiBa.
+   */
+  candidataDivisione(r: TransitorioDTO): boolean {
+    const d = (r.descrizione ?? '').toUpperCase();
+    return d.includes('RIBA') || d.includes('RI.BA') || d.includes('EFFETT');
+  }
+
+  /** Apre lo stesso dialog del dettaglio movimento: un motore solo, una guardia sola. */
+  apriDivisione(r: TransitorioDTO): void {
+    this.movimenti.getById(r.id).subscribe(mov => {
+      import('../movimenti/dividi-movimento-dialog.component').then(m => {
+        this.dialog.open(m.DividiMovimentoDialogComponent, {
+          data: { movimento: mov }, autoFocus: false, maxHeight: '90vh',
+        }).afterClosed().subscribe(figli => {
+          // I figli nascono sul conto scelto: la riga esce dalla coda del transitorio da sola.
+          if (figli) this.ricarica();
+        });
+      });
+    });
+  }
+
+  /** Firme ridotte a una parola sola: valide, ma catalogano da sole molto più largo (SPEC p.5). */
+  readonly firmeMonoToken = computed(() =>
+    this.firmeScelte().filter(f => f.token.length === 1).map(f => f.token[0]));
+
   conferma(): void {
     const c = this.cogeScelto();
     const bu = this.buScelta();
@@ -767,12 +888,20 @@ export class SpeseWizardComponent implements OnInit {
     this.salvando.set(true);
     // ponytail: N chiamate in parallelo, non un endpoint bulk. Una fallita non annulla le altre —
     // la coda si ricarica dal server e mostra quel che resta davvero (SPEC, edge case).
+    // Le firme si mandano SOLO se l'operatore ha toccato i chip, e solo per la riga di cui ha visto
+    // l'anteprima (la testa del gruppo). Le gemelle hanno causali diverse, quindi firme diverse: se
+    // qui si è modificato, loro NON imparano — è la sola scelta che non scrive in silenzio qualcosa
+    // di diverso da ciò che stava a schermo (SPEC, punto aperto 4).
+    const modificate = this.imparo() && this.keywordModificate();
+    const scelte = this.firmeScelte();
+    const testa = righe[0].id;
     forkJoin(righe.map(r => this.movimenti.classificaTransitorio(r.id, {
       cogeId: c.id, businessUnitId: bu, fornitoreId: r.fornitoreId,
       // Si impara se c'è qualcosa da imparare (lo dice il server, riga per riga: `firmeDaImparare`
       // vuota = nessun intestatario vero, da «EFFETTI RITIRATI» o da una causale POS nascerebbe una
       // firma spuria) E se l'operatore non ha detto di no. Il default resta sì.
-      apprendiKeyword: this.imparo() && r.firmeDaImparare.length > 0,
+      apprendiKeyword: this.imparo() && r.firmeDaImparare.length > 0 && !modificate,
+      firme: modificate && r.id === testa ? scelte : null,
       nota: null,
     }))).subscribe({
       next: () => {
@@ -844,6 +973,7 @@ export class SpeseWizardComponent implements OnInit {
     this.motivoSposta.set('');
     // Il «non imparare» vale per la riga che si sta decidendo, non per tutta la sessione.
     this.imparo.set(true);
+    this.spenti.set(new Set());
   }
 
   private recents(): number[] {
