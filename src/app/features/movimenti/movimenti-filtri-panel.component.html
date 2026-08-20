@@ -157,7 +157,7 @@
         </mat-select>
       </mat-form-field>
       @if (cogeQuery() && cogeFiltrati().length === 0) {
-        <p class="mfp__hint">Nessun conto corrisponde a «{{ cogeQuery() }}».</p>
+        <p class="mfp__hint">Nessun risultato per «{{ cogeQuery() }}».</p>
       }
     </section>
 
@@ -166,34 +166,64 @@
       <h4 class="mfp__sec-title">Collegamenti</h4>
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
+        <mat-label>Cerca fornitore</mat-label>
+        <input matInput [value]="fornitoreQuery()" (input)="fornitoreQuery.set($any($event.target).value)"
+               placeholder="es. sonvico">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
         <mat-label>Fornitore</mat-label>
         <mat-select multiple [value]="draft().fornitoreId"
                     (valueChange)="setMulti('fornitoreId', $event)">
-          @for (f of fornitori(); track f.id) {
+          @for (f of fornitoriFiltrati(); track f.id) {
             <mat-option [value]="f.id">{{ f.ragioneSociale }}</mat-option>
           }
         </mat-select>
+      </mat-form-field>
+      @if (fornitoreQuery() && fornitoriFiltrati().length === 0) {
+        <p class="mfp__hint">Nessun risultato per «{{ fornitoreQuery() }}».</p>
+      }
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
+        <mat-label>Cerca evento</mat-label>
+        <input matInput [value]="eventoQuery()" (input)="eventoQuery.set($any($event.target).value)"
+               placeholder="es. marika oppure 24/01">
+        <mat-icon matSuffix>search</mat-icon>
       </mat-form-field>
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
         <mat-label>Evento</mat-label>
         <mat-select multiple [value]="draft().eventoId"
                     (valueChange)="setMulti('eventoId', $event)">
-          @for (e of eventi(); track e.id) {
+          @for (e of eventiFiltrati(); track e.id) {
             <mat-option [value]="e.id">{{ e.label }}</mat-option>
           }
         </mat-select>
+      </mat-form-field>
+      @if (eventoQuery() && eventiFiltrati().length === 0) {
+        <p class="mfp__hint">Nessun risultato per «{{ eventoQuery() }}».</p>
+      }
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
+        <mat-label>Cerca metodo di pagamento</mat-label>
+        <input matInput [value]="metodoQuery()" (input)="metodoQuery.set($any($event.target).value)"
+               placeholder="es. satispay">
+        <mat-icon matSuffix>search</mat-icon>
       </mat-form-field>
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mfp__full">
         <mat-label>Metodo di pagamento</mat-label>
         <mat-select multiple [value]="draft().metodoPagamentoId"
                     (valueChange)="setMulti('metodoPagamentoId', $event)">
-          @for (m of metodi(); track m.id) {
+          @for (m of metodiFiltrati(); track m.id) {
             <mat-option [value]="m.id">{{ m.descrizione }}</mat-option>
           }
         </mat-select>
       </mat-form-field>
+      @if (metodoQuery() && metodiFiltrati().length === 0) {
+        <p class="mfp__hint">Nessun risultato per «{{ metodoQuery() }}».</p>
+      }
 
       <!-- Le categorie sono definite per business unit: senza una BU sola l'elenco non esiste. -->
       @if (buSingolaSelezionata() !== null) {

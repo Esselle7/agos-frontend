@@ -32,6 +32,11 @@ import {
 
 interface EventoOpzione { id: string; label: string; }
 
+/** Confronto insensibile ad accenti e maiuscole: «credit» deve trovare «Crédit Agricole». */
+function normalizza(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
 /** Cosa esce dal pannello: i filtri scelti + le etichette leggibili dei valori selezionati. */
 export interface FiltriApplicati {
   filtri: MovimentiFiltri;
@@ -96,19 +101,42 @@ export class MovimentiFiltriPanelComponent implements OnInit {
   readonly SENZA_BANCA = CONTO_SENZA_BANCA;
 
   /**
-   * Testo di ricerca dentro il piano dei conti: 164 voci sono troppe da scorrere a mano.
+   * Testo di ricerca delle quattro tendine lunghe (conti, fornitori, eventi, metodi).
    * È un signal e non un FormControl di proposito — un computed che legge FormControl.value
    * non si aggiorna e il filtro resterebbe congelato (trappola già vista nel progetto).
    */
   readonly cogeQuery = signal('');
+  readonly fornitoreQuery = signal('');
+  readonly eventoQuery = signal('');
+  readonly metodoQuery = signal('');
 
-  readonly cogeFiltrati = computed(() => {
-    const q = this.cogeQuery().trim().toLowerCase();
-    const tutti = this.coge();
-    if (!q) return tutti;
-    return tutti.filter(c =>
-      c.codice.toLowerCase().includes(q) || c.nome.toLowerCase().includes(q));
-  });
+  readonly cogeFiltrati = computed(() => this.filtra(
+    this.coge(), this.cogeQuery(), c => `${c.codice} ${c.nome}`, c => c.id, this.draft().cogeId));
+
+  readonly fornitoriFiltrati = computed(() => this.filtra(
+    this.fornitori(), this.fornitoreQuery(), f => f.ragioneSociale, f => f.id, this.draft().fornitoreId));
+
+  readonly eventiFiltrati = computed(() => this.filtra(
+    this.eventi(), this.eventoQuery(), e => e.label, e => e.id, this.draft().eventoId));
+
+  readonly metodiFiltrati = computed(() => this.filtra(
+    this.metodi(), this.metodoQuery(), m => m.descrizione, m => m.id, this.draft().metodoPagamentoId));
+
+  /**
+   * Filtro per SOTTOSTRINGA, non per prefisso: il typeahead nativo del CDK dentro un mat-select
+   * ancora la ricerca all'inizio dell'etichetta (`indexOf(q) === 0`), quindi «marika» non arriva
+   * mai a «18esimo Marika lupo» — e in produzione 22 eventi su 94 iniziano per «18esimo».
+   *
+   * Le voci GIÀ SELEZIONATE restano sempre in lista anche se non corrispondono alla query: se
+   * un'opzione selezionata sparisce dal DOM, il mat-select perde l'etichetta nel suo trigger e
+   * il filtro sembra essersi cancellato da solo.
+   */
+  private filtra<T, K>(voci: T[], query: string, testo: (v: T) => string,
+                       id: (v: T) => K, selezionati: readonly K[]): T[] {
+    const q = normalizza(query);
+    if (!q) return voci;
+    return voci.filter(v => normalizza(testo(v)).includes(q) || selezionati.includes(id(v)));
+  }
 
   /**
    * Le categorie esistono per business unit: senza una BU scelta l'elenco non è definito.
@@ -124,8 +152,8 @@ export class MovimentiFiltriPanelComponent implements OnInit {
     this.buService.getAll().subscribe(v => this.bus.set(v));
     this.pianoContiService.list().subscribe(v => this.coge.set(v));
     this.lookupService.getMetodiPagamento().subscribe(v => this.metodi.set(v));
-    // Elenchi interi in una tendina: oggi sono 21 fornitori e 58 eventi, quindi ci stanno.
-    // ponytail: se un giorno superano il centinaio serve una ricerca server-side, non una tendina più lunga.
+    // Elenchi interi in una tendina, con ricerca a sottostringa sopra: oggi 21 fornitori e 94 eventi.
+    // ponytail: filtro in memoria; oltre il migliaio di voci serve una ricerca server-side, non una tendina più lunga.
     this.fornitoriService.getList({ size: 200 }).subscribe(p => this.fornitori.set(p.content));
     this.eventiService.getList({ size: 200 }).subscribe(p => this.eventi.set(
       p.content.map(e => ({ id: e.id, label: this.etichettaEvento(e) })),
@@ -199,6 +227,9 @@ export class MovimentiFiltriPanelComponent implements OnInit {
     this.draft.set(filtriVuoti());
     this.categorie.set([]);
     this.cogeQuery.set('');
+    this.fornitoreQuery.set('');
+    this.eventoQuery.set('');
+    this.metodoQuery.set('');
   }
 
   conferma(): void {

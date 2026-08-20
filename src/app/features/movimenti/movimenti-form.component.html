@@ -71,30 +71,30 @@
                     class="mov-form__flusso-card"
                     [class.mov-form__flusso-card--active]="tipoFlusso() === 'immediato'"
                     (click)="onTipoFlussoChange('immediato')">
-              <mat-icon class="mov-form__flusso-icon">flash_on</mat-icon>
-              <strong>Movimento immediato</strong>
-              <span>Economico e finanziario coincidono</span>
-              <em>es. Pagamento ricevuto oggi</em>
+              <mat-icon class="mov-form__flusso-icon">{{ schedeFlusso().immediato.icon }}</mat-icon>
+              <strong>{{ schedeFlusso().immediato.label }}</strong>
+              <span>{{ schedeFlusso().immediato.desc }}</span>
+              <em>{{ schedeFlusso().immediato.esempio }}</em>
             </button>
 
             <button type="button"
                     class="mov-form__flusso-card"
                     [class.mov-form__flusso-card--active]="tipoFlusso() === 'differito'"
                     (click)="onTipoFlussoChange('differito')">
-              <mat-icon class="mov-form__flusso-icon">schedule</mat-icon>
-              <strong>Economico con incasso differito</strong>
-              <span>Il ricavo/costo è ora, la cassa arriva dopo</span>
-              <em>es. Fattura emessa, incasso tra 90gg</em>
+              <mat-icon class="mov-form__flusso-icon">{{ schedeFlusso().differito.icon }}</mat-icon>
+              <strong>{{ schedeFlusso().differito.label }}</strong>
+              <span>{{ schedeFlusso().differito.desc }}</span>
+              <em>{{ schedeFlusso().differito.esempio }}</em>
             </button>
 
             <button type="button"
                     class="mov-form__flusso-card"
                     [class.mov-form__flusso-card--active]="tipoFlusso() === 'soloFinanziario'"
                     (click)="onTipoFlussoChange('soloFinanziario')">
-              <mat-icon class="mov-form__flusso-icon">swap_horiz</mat-icon>
-              <strong>Solo finanziario</strong>
-              <span>Nessun impatto EBITDA</span>
-              <em>es. Giroconto, rettifica cassa</em>
+              <mat-icon class="mov-form__flusso-icon">{{ schedeFlusso().soloFinanziario.icon }}</mat-icon>
+              <strong>{{ schedeFlusso().soloFinanziario.label }}</strong>
+              <span>{{ schedeFlusso().soloFinanziario.desc }}</span>
+              <em>{{ schedeFlusso().soloFinanziario.esempio }}</em>
             </button>
           </div>
         } @else {
@@ -169,7 +169,7 @@
             <mat-datepicker-toggle matSuffix [for]="pickerData"></mat-datepicker-toggle>
             <mat-datepicker #pickerData></mat-datepicker>
             <mat-hint>
-              @if (tipoFlusso() === 'differito') { Quando nasce il ricavo/costo (impatto P&amp;L) }
+              @if (tipoFlusso() === 'differito') { Quando nasce il ricavo (impatto P&amp;L) }
               @else if (tipoFlusso() === 'soloFinanziario') { Quando avviene il movimento di cassa }
               @else { Data dell'operazione }
             </mat-hint>

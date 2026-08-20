@@ -30,6 +30,9 @@ const CAL_TTL_MS = 60_000;
 
 export interface EventiFilter {
   stato?: StatoEvento;
+  /** LISTA = eventi da lavorare (non saldati, prima i più vicini) · STORICO = solo i saldati.
+   *  Omesso = tutti gli eventi, che è ciò che chiedono filtri movimenti e wizard. */
+  vista?: 'LISTA' | 'STORICO';
   buId?: number;
   from?: string;
   to?: string;
@@ -46,6 +49,7 @@ export class EventiService {
   getList(filter: EventiFilter = {}): Observable<PagedResponse<EventoDTO>> {
     let params = new HttpParams();
     if (filter.stato != null) params = params.set('stato', filter.stato);
+    if (filter.vista != null) params = params.set('vista', filter.vista);
     if (filter.buId != null) params = params.set('buId', filter.buId);
     if (filter.from != null) params = params.set('from', filter.from);
     if (filter.to != null) params = params.set('to', filter.to);
