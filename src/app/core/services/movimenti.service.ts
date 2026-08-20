@@ -305,12 +305,6 @@ export class MovimentiService {
    * ponytail: TEMPORANEO (SPEC bpm-luglio-2026-recupero.md R8) — ri-manda nel motore le righe
    * ancora in coda per questo import. Si cancella insieme al bottone dello Storico import.
    */
-  riprocessaCodaImport(importLogId: string): Observable<Record<string, unknown>> {
-    return this.http.post<Record<string, unknown>>(
-      environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_RIPROCESSA(importLogId), {}
-    );
-  }
-
   rollbackImport(importLogId: string): Observable<Record<string, unknown>> {
     return this.http.delete<Record<string, unknown>>(
       environment.apiBaseUrl + API_PATHS.MOVIMENTI.IMPORT_ROLLBACK(importLogId)
