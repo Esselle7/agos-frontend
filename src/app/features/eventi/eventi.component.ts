@@ -34,6 +34,22 @@ export class EventiComponent {
 
   readonly refreshTrigger = signal(0);
 
+  /** Indice della scheda attiva: serve per portare l'utente allo Storico quando chiede i saldati. */
+  readonly tabAttivo = signal(0);
+
+  /** Conteggi delle due schede, scritti nelle etichette: li dichiara ogni lista dopo il caricamento. */
+  readonly totaleLista = signal<number | null>(null);
+  readonly totaleStorico = signal<number | null>(null);
+
+  /** «Lista» → «Lista (36)». Finché il conteggio non è arrivato, l'etichetta resta secca. */
+  etichetta(nome: string, totale: number | null): string {
+    return totale == null ? nome : `${nome} (${totale})`;
+  }
+
+  vaiAlloStorico(): void {
+    this.tabAttivo.set(this.auth.isAdmin() ? 1 : 2);
+  }
+
   openNuovoEvento(): void {
     import('./evento-form-dialog.component').then(m => {
       this.dialog
