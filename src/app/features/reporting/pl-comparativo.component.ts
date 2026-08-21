@@ -228,28 +228,56 @@ export class PlComparativoComponent implements OnInit {
     return this.businessUnits().find(b => b.id === buId)?.colore ?? '#6B7280';
   }
 
+  /**
+   * Fase 5 / decisione C: il conto economico e' MENSILE, quindi questa pagina chiede sempre
+   * mesi interi. `mv_conto_economico_mensile` aggrega per anno*100+mese: un `to` a meta' mese
+   * veniva ignorato in silenzio e la pagina mostrava comunque il mese intero (misurato il
+   * 21/08/2026: 500,00 EUR di scarto fra P&L e dashboard sulla finestra 01/07 -> 20/08).
+   * Da oggi il backend rifiuta i range non mensili con 400 RANGE_NON_MENSILE: se questi preset
+   * smettessero di arrotondare, la pagina si spaccherebbe invece di mentire.
+   */
   private periodToRange(evt: PeriodChangeEvent): { from: string; to: string } {
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
     switch (evt.period) {
       case 'MTD':
-        return {
-          from: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`,
-          to: todayStr,
-        };
+        return meseIntero(today, today);
       case 'QTD': {
         const q = Math.floor(today.getMonth() / 3);
-        return { from: new Date(today.getFullYear(), q * 3, 1).toISOString().slice(0, 10), to: todayStr };
+        return meseIntero(new Date(today.getFullYear(), q * 3, 1), today);
       }
       case 'YTD':
-        return { from: `${today.getFullYear()}-01-01`, to: todayStr };
+        return meseIntero(new Date(today.getFullYear(), 0, 1), today);
       default:
-        return { from: evt.from!, to: evt.to! };
+        return meseIntero(parseIso(evt.from!), parseIso(evt.to!));
     }
   }
 
   private ytdRange(): { from: string; to: string } {
     const today = new Date();
-    return { from: `${today.getFullYear()}-01-01`, to: today.toISOString().slice(0, 10) };
+    return meseIntero(new Date(today.getFullYear(), 0, 1), today);
   }
+}
+
+// ── helper di periodo (esportati: sono pura aritmetica di date, testati in spec) ─────────────
+
+/**
+ * Allarga l'intervallo ai confini di mese: `from` al primo giorno del suo mese, `to` all'ultimo
+ * giorno del suo. Il conto economico e' mensile (Fase 5 / decisione C) e il backend rifiuta con
+ * 400 RANGE_NON_MENSILE tutto cio' che non lo e'.
+ */
+export function meseIntero(from: Date, to: Date): { from: string; to: string } {
+  const primo  = new Date(from.getFullYear(), from.getMonth(), 1);
+  const ultimo = new Date(to.getFullYear(), to.getMonth() + 1, 0);
+  return { from: iso(primo), to: iso(ultimo) };
+}
+
+/** 'YYYY-MM-DD' -> Date LOCALE. `new Date(s)` la interpreta come UTC: su un fuso negativo
+ *  sposterebbe il giorno indietro, e sui confini anche il mese. */
+export function parseIso(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function iso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
