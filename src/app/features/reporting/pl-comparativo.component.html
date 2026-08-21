@@ -4,6 +4,7 @@
   <div class="plc-controls">
     <agos-date-range-picker
       [period]="selectedPeriod()"
+      [mensile]="true"
       (periodChange)="onPeriodChange($event)"
     />
     <button mat-raised-button color="primary" [disabled]="loading()" (click)="load()">

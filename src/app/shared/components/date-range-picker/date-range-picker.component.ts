@@ -45,6 +45,13 @@ export class DateRangePickerComponent implements OnInit {
   @Input() period: DashboardPeriod = 'MTD';
   @Input() from?: string;
   @Input() to?: string;
+  /**
+   * Il consumatore aggrega per MESE INTERO (conto economico, Fase 5 / decisione C): l'intervallo
+   * mostrato sui bottoni finisce a fine mese, non "a oggi", altrimenti l'etichetta prometterebbe
+   * una precisione al giorno che il dato non ha. Default false: la dashboard filtra per giorno
+   * esatto e la sua etichetta resta com'e'.
+   */
+  @Input() mensile = false;
   @Output() periodChange = new EventEmitter<PeriodChangeEvent>();
 
   private readonly cdr = inject(ChangeDetectorRef);
@@ -76,20 +83,20 @@ export class DateRangePickerComponent implements OnInit {
 
   getDateRange(p: Exclude<DashboardPeriod, 'CUSTOM'>): string {
     const t = this.today;
-    const todayStr = this.fmt(t);
+    const fine = this.fmt(this.fineIntervallo(t));
     switch (p) {
       case 'MTD': {
         const d = new Date(t.getFullYear(), t.getMonth(), 1);
-        return `${this.fmt(d)} – ${todayStr}`;
+        return `${this.fmt(d)} – ${fine}`;
       }
       case 'QTD': {
         const m = Math.floor(t.getMonth() / 3) * 3;
         const d = new Date(t.getFullYear(), m, 1);
-        return `${this.fmt(d)} – ${todayStr}`;
+        return `${this.fmt(d)} – ${fine}`;
       }
       case 'YTD': {
         const d = new Date(t.getFullYear(), 0, 1);
-        return `${this.fmt(d)} – ${todayStr}`;
+        return `${this.fmt(d)} – ${fine}`;
       }
     }
   }
@@ -97,9 +104,17 @@ export class DateRangePickerComponent implements OnInit {
   get customRangeLabel(): string {
     const from = this.fromCtrl.value;
     const to   = this.toCtrl.value;
-    if (from && to) return `${this.fmt(from)} – ${this.fmt(to)}`;
+    if (from && to) {
+      const a = this.mensile ? new Date(from.getFullYear(), from.getMonth(), 1) : from;
+      return `${this.fmt(a)} – ${this.fmt(this.fineIntervallo(to))}`;
+    }
     if (from)       return `Dal ${this.fmt(from)}…`;
     return 'Scegli periodo';
+  }
+
+  /** Fine dell'intervallo mostrata all'utente: fine mese se `mensile`, altrimenti la data stessa. */
+  private fineIntervallo(d: Date): Date {
+    return this.mensile ? new Date(d.getFullYear(), d.getMonth() + 1, 0) : d;
   }
 
   get endMinDate(): Date | null {
