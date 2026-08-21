@@ -53,6 +53,15 @@ export class PlComparativoComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly dataRefresh = inject(DataRefreshService);
 
+  /**
+   * Fase 6: la banda compare solo se c'e' davvero qualcosa da dichiarare — un P&L tutto
+   * classificato non deve portarsi dietro una riga vuota.
+   */
+  haQualcosaDaDichiarare(d: PlComparativoDTO): boolean {
+    const q = d.qualita;
+    return q.nonClassificatoRicavi > 0 || q.nonClassificatoCosti > 0 || q.creditiEventiAperti > 0;
+  }
+
   readonly period = signal<{ from: string; to: string }>(this.ytdRange());
   readonly selectedPeriod = signal<DashboardPeriod>('YTD');
   readonly data = signal<PlComparativoDTO | null>(null);
