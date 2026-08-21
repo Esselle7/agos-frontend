@@ -132,8 +132,8 @@
         <ng-container matColumnDef="marginePct">
           <th mat-header-cell *matHeaderCellDef class="cell-right">Margine</th>
           <td mat-cell *matCellDef="let row" class="cell-right"
-            [class.text-success]="row.marginePct >= 0"
-            [class.text-danger]="row.marginePct < 0">
+            [class.text-success]="row.ebitda >= 0"
+            [class.text-danger]="row.ebitda < 0">
             {{ row.marginePct.toFixed(1) }}%
           </td>
         </ng-container>
@@ -171,8 +171,8 @@
           {{ d.totaleConsolidato.ebitda | euro }}
         </span>
         <span class="plc-total-val"
-          [class.text-success]="d.totaleConsolidato.marginePct >= 0"
-          [class.text-danger]="d.totaleConsolidato.marginePct < 0">
+          [class.text-success]="d.totaleConsolidato.ebitda >= 0"
+          [class.text-danger]="d.totaleConsolidato.ebitda < 0">
           {{ d.totaleConsolidato.marginePct.toFixed(1) }}%
         </span>
         <span class="plc-total-val euro"

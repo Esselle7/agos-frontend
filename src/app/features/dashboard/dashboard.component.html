@@ -118,6 +118,62 @@
         color="primary"
         [loading]="loadingPeriod()" />
     </div>
+    <mat-divider class="section-divider" />
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- RIGA GRAFICI                                                -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div class="charts-row">
+
+      <!-- Linea: Andamento Mensile -->
+      <div class="charts-row__left card">
+        <div class="chart-header">
+          <h5>Andamento Mensile</h5>
+          <span class="text-sub chart-subtitle">importi transitati in banca · ultimi 24 mesi</span>
+        </div>
+        @if (andamentoError) {
+          <agos-empty-state icon="error_outline" title="Dati non disponibili"
+            subtitle="Impossibile caricare l'andamento" />
+        } @else if (andamento().length === 0) {
+          <agos-empty-state icon="bar_chart" title="Nessun dato disponibile" />
+        } @else {
+          <div class="chart-container">
+            <canvas baseChart
+              [data]="lineChartData()"
+              [type]="'line'"
+              [options]="lineChartOptions">
+            </canvas>
+          </div>
+        }
+      </div>
+
+      <!-- Barre: Fatturato per BU -->
+      <div class="charts-row__right card">
+        <div class="chart-header">
+          <h5>Fatturato per Business Unit</h5>
+          <span class="text-sub chart-subtitle">importi transitati in banca</span>
+          @if (loadingPeriod()) {
+            <agos-skeleton-loader type="text" [rows]="1" />
+          }
+        </div>
+        @if (fatturatoError) {
+          <agos-empty-state icon="error_outline" title="Dati non disponibili" />
+        } @else if (fatturatoPerBu().length === 0) {
+          <agos-empty-state icon="pie_chart" title="Nessun dato disponibile" />
+        } @else {
+          <div class="chart-container">
+            <canvas baseChart
+              [data]="buChartData()"
+              [type]="'bar'"
+              [options]="buChartOptions">
+            </canvas>
+          </div>
+        }
+      </div>
+
+    </div>
+
+    <mat-divider class="section-divider" />
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- SEZIONE: Performance Economica                             -->
@@ -161,59 +217,6 @@
         [loading]="loadingPeriod()" />
     </div>
 
-    <mat-divider class="section-divider" />
-
-    <!-- ════════════════════════════════════════════════════════════ -->
-    <!-- RIGA GRAFICI                                                -->
-    <!-- ════════════════════════════════════════════════════════════ -->
-    <div class="charts-row">
-
-      <!-- Linea: Andamento Mensile -->
-      <div class="charts-row__left card">
-        <div class="chart-header">
-          <h5>Andamento Mensile</h5>
-          <span class="text-sub chart-subtitle">ultimi 24 mesi</span>
-        </div>
-        @if (andamentoError) {
-          <agos-empty-state icon="error_outline" title="Dati non disponibili"
-            subtitle="Impossibile caricare l'andamento" />
-        } @else if (andamento().length === 0) {
-          <agos-empty-state icon="bar_chart" title="Nessun dato disponibile" />
-        } @else {
-          <div class="chart-container">
-            <canvas baseChart
-              [data]="lineChartData()"
-              [type]="'line'"
-              [options]="lineChartOptions">
-            </canvas>
-          </div>
-        }
-      </div>
-
-      <!-- Barre: Fatturato per BU -->
-      <div class="charts-row__right card">
-        <div class="chart-header">
-          <h5>Fatturato per Business Unit</h5>
-          @if (loadingPeriod()) {
-            <agos-skeleton-loader type="text" [rows]="1" />
-          }
-        </div>
-        @if (fatturatoError) {
-          <agos-empty-state icon="error_outline" title="Dati non disponibili" />
-        } @else if (fatturatoPerBu().length === 0) {
-          <agos-empty-state icon="pie_chart" title="Nessun dato disponibile" />
-        } @else {
-          <div class="chart-container">
-            <canvas baseChart
-              [data]="buChartData()"
-              [type]="'bar'"
-              [options]="buChartOptions">
-            </canvas>
-          </div>
-        }
-      </div>
-
-    </div>
 
 
   }
