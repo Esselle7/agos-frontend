@@ -43,6 +43,39 @@
 
   @if (data(); as d) {
 
+    <!-- Fase 6: lo stesso numero con la sua etichetta di attendibilità. Non corregge niente:
+         dice quanto del totale è ancora da attribuire, e se il periodo è confrontabile. -->
+    @if (d.qualita.perimetroIncompleto) {
+      <agos-help-note tono="warn" titolo="Periodo non confrontabile">
+        {{ d.qualita.perimetroNota }} Il gestionale è ripartito da zero: prima di quella data i
+        ricavi ci sono ma i costi no, quindi il margine di questa finestra è gonfiato.
+      </agos-help-note>
+    }
+
+    @if (haQualcosaDaDichiarare(d)) {
+      <div class="plc-qualita">
+        <mat-icon>fact_check</mat-icon>
+        <span class="plc-qualita__label">Attendibilità del dato</span>
+        @if (d.qualita.nonClassificatoRicavi > 0) {
+          <span class="plc-qualita__voce">
+            Ricavi su conti transitori <strong>{{ d.qualita.nonClassificatoRicavi | euro }}</strong>
+            ({{ d.qualita.nonClassificatoRicaviPct }}%)
+          </span>
+        }
+        @if (d.qualita.nonClassificatoCosti > 0) {
+          <span class="plc-qualita__voce">
+            Costi su conti transitori <strong>{{ d.qualita.nonClassificatoCosti | euro }}</strong>
+            ({{ d.qualita.nonClassificatoCostiPct }}%)
+          </span>
+        }
+        @if (d.qualita.creditiEventiAperti > 0) {
+          <span class="plc-qualita__voce">
+            Crediti evento aperti <strong>{{ d.qualita.creditiEventiAperti | euro }}</strong>
+          </span>
+        }
+      </div>
+    }
+
     <agos-help-note tono="info" [collapsed]="true"
       titolo="Come leggere questo conto economico">
       <p>Questo è il conto economico <strong>per competenza</strong>: ricavi e costi

@@ -23,6 +23,21 @@ export interface CostiDTO {
   perCategoria: VoceDTO[];
 }
 
+/**
+ * Fase 6 — attendibilità del numero esposto: non cambia il totale, dichiara quanto di esso
+ * è ancora su conti transitori, quanto è credito non incassato, e se il periodo richiesto
+ * comprende mesi anteriori al go-live (dove i costi non ci sono).
+ */
+export interface QualitaDTO {
+  nonClassificatoRicavi: number;
+  nonClassificatoRicaviPct: number;
+  nonClassificatoCosti: number;
+  nonClassificatoCostiPct: number;
+  creditiEventiAperti: number;
+  perimetroIncompleto: boolean;
+  perimetroNota: string | null;
+}
+
 export interface PlDTO {
   bu: BuRefDTO;
   from: string;
@@ -37,6 +52,7 @@ export interface PlDTO {
   ebt: number;
   imposte: number;
   utileNetto: number;
+  qualita: QualitaDTO;
 }
 
 export interface BuPlRiepilogoDTO {
@@ -66,6 +82,7 @@ export interface PlComparativoDTO {
   to: string;
   businessUnits: BuPlRiepilogoDTO[];
   totaleConsolidato: TotaleConsolidatoDTO;
+  qualita: QualitaDTO;
 }
 
 export interface CashFlowPeriodoDTO {
