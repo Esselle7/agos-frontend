@@ -252,3 +252,24 @@
     &__value { min-width: 0; text-align: left; }
   }
 }
+
+/* Fase 6 — banda di attendibilità: informativa, non un allarme. */
+.plc-qualita {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  margin-bottom: var(--space-3, 12px);
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.12));
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-2, transparent);
+  font-size: 0.85rem;
+  color: var(--text-secondary, inherit);
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+
+  &__label { font-weight: 600; }
+
+  &__voce { white-space: nowrap; }
+}
