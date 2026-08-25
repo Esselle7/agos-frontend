@@ -182,8 +182,7 @@ export class PlComparativoComponent implements OnInit {
     this.contiSvc.getAll()
       .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
       .subscribe(conti => {
-        const date = conti.map(c => c.dataSaldoIniziale).filter((d): d is string => !!d).sort();
-        this.dataApertura.set(date.length ? date[date.length - 1] : null);
+        this.dataApertura.set(dataAperturaGestionale(conti));
       });
     this.load();
     // Auto-refresh dopo mutation backend (movimento creato/aggiornato, pagamento
@@ -280,4 +279,33 @@ export function parseIso(s: string): Date {
 
 function iso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Il giorno da cui il gestionale ha dati: quello DOPO l'apertura dei conti correnti.
+ *
+ * Perche' i soli BANCARIO: l'apertura e' quella dei LIBRI, e i libri sono i conti correnti.
+ * Fino al 21/08/2026 questa pagina prendeva il massimo su TUTTI i conti, e vinceva un
+ * placeholder — «Cassa contanti», aperta il 05/08 con saldo 0,00 — cosi' il cartello annunciava
+ * il 5 agosto mentre i movimenti partono dal 1 luglio. Un portafoglio aggiunto domani non deve
+ * spostare la data di apertura del gestionale.
+ *
+ * Perche' +1 giorno: il saldo iniziale filtra i movimenti con `>` STRETTO, quindi il primo giorno
+ * coperto e' quello successivo alla data del saldo (30/06 -> 01/07).
+ *
+ * ponytail: se un giorno i libri non fossero piu' i conti correnti, il filtro sul tipo va rivisto.
+ * Senza conti BANCARIO ricade sul massimo di tutti, come prima.
+ */
+export function dataAperturaGestionale(
+  conti: { tipo: string; dataSaldoIniziale: string | null }[],
+): string | null {
+  const date = (tipo?: string) => conti
+    .filter(c => (tipo ? c.tipo === tipo : true) && !!c.dataSaldoIniziale)
+    .map(c => c.dataSaldoIniziale as string)
+    .sort();
+  const ultima = date('BANCARIO').pop() ?? date().pop();
+  if (!ultima) return null;
+  const d = parseIso(ultima);
+  d.setDate(d.getDate() + 1);
+  return iso(d);
 }
