@@ -37,6 +37,7 @@ const PIANO: PlanSummaryDTO = {
   giornoDelMese: 31, frequenza: 'MENSILE', numeroRate: 60, dataPrimaRata: '2026-01-31',
   stato: 'ATTIVO', riferimentoEstrattoConto: null, ratePending: 54, ratePaid: 6,
   rateSkipped: 0, rateCancelled: 0, totalePagato: 15000, totaleResiduo: 135000,
+  debitoResiduo: 108000,
 };
 
 function rata(id: string, n: number, stato: InstallmentDTO['stato']): InstallmentDTO {
