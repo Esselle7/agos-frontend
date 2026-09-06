@@ -131,6 +131,18 @@ export interface ForecastingAsIsDTO {
   ebitdaYtd: number;
   creditiAperti: number;
   debitiAperti: number;
+  /**
+   * Credito da eventi già celebrati e non ancora incassati. Sottoinsieme di `creditiAperti`.
+   * Sta FUORI dalla proiezione di cassa: non ha una data attesa di incasso e non va mai sommato
+   * al saldo finale previsto.
+   */
+  creditoEventiCelebrati: number;
+  /** Data dell'ultimo movimento con cassa a libro (MAX data_finanziaria). Null se non ce n'è. */
+  ultimaDataCassa: string | null;
+  /** true se il dato di cassa è più vecchio della soglia di freschezza, o assente. */
+  datiIncompleti: boolean;
+  /** Testo che dichiara la data e i mesi scoperti. Valorizzato solo se `datiIncompleti`. */
+  nota: string | null;
 }
 
 export interface ForecastingDettaglioDTO {
@@ -152,6 +164,8 @@ export interface ForecastingTimelineDTO {
   ebitdaPeriodo: number;
   saldoLiquiditaFine: number;
   entrateStimate: number;
+  /** Costi ricorrenti stimati del bucket (P7). Come entrateStimate, NON entra in saldoLiquiditaFine. */
+  usciteStimate: number;
 }
 
 export interface ForecastingEconomicoDTO {
@@ -162,6 +176,10 @@ export interface ForecastingEconomicoDTO {
   oneriFinanziariPrevisti: number;
   ebitPrevisto: number;
   dettaglio: ForecastingDettaglioDTO[];
+  /** EBT = ebitPrevisto − oneriFinanziariPrevisti. La cascata si ferma qui: niente imposte. */
+  ebtPrevisto: number;
+  /** Perché la stima dei costi non è disponibile, o null se lo è. */
+  notaStimaCosti: string | null;
 }
 
 export interface ForecastingFinanziarioDTO {

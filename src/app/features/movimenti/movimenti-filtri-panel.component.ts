@@ -9,7 +9,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { ContiService } from '../../core/services/conti.service';
@@ -59,7 +58,7 @@ export interface FiltriApplicati {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
-    MatSelectModule, MatDatepickerModule, MatNativeDateModule, MatTooltipModule,
+    MatSelectModule, MatDatepickerModule, MatTooltipModule,
   ],
   templateUrl: './movimenti-filtri-panel.component.html',
   styleUrls: ['./movimenti-filtri-panel.component.scss'],

@@ -32,6 +32,12 @@
   flex-wrap: wrap;
 }
 
+/* Porta il tooltip di «Includi stime»: un bottone disabilitato ha pointer-events:none e non lo
+   riceverebbe mai. Deve restare trasparente al layout, da qui inline-flex. */
+.fc-stima-wrap {
+  display: inline-flex;
+}
+
 .fc-horizon-note {
   display: flex;
   align-items: center;
@@ -296,4 +302,36 @@
 .fc-riepilogo__row--stima {
   font-size: 0.85rem;
   color: var(--text-sub);
+}
+
+// ── P4: credito da eventi celebrati — informazione, non flusso ───────────────
+// Staccato dai totali da una riga sopra, così non si legge come parte del saldo.
+
+.fc-riepilogo__row--fuori {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.fc-riepilogo__nota {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-sub);
+}
+
+// ── P6: il previsionale dichiara su che dato sta prevedendo ──────────────────
+
+.fc-freschezza {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  border-left: 4px solid var(--warning);
+
+  mat-icon { color: var(--warning); flex-shrink: 0; }
+
+  div { display: flex; flex-direction: column; gap: 2px; }
+  span { color: var(--text-sub); font-size: 0.85rem; line-height: 1.45; }
 }
