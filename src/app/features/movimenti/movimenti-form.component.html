@@ -42,7 +42,7 @@
             <span class="mov-wiz__impact-cell"
                   [class.pos]="preview().finanziario > 0" [class.neg]="preview().finanziario < 0">
               <mat-icon>account_balance</mat-icon>
-              <span class="mov-wiz__impact-lbl">Cassa oggi</span>
+              <span class="mov-wiz__impact-lbl">Cassa</span>
               <b>@if (preview().finanziario === 0) { 0 € } @else { {{ preview().finanziario | euro }} }</b>
             </span>
             @if (preview().previsto !== 0) {
@@ -60,6 +60,24 @@
       @if (isEditMode || step() === 1) {
       <div class="card mov-form__section">
         <h4 class="mov-form__section-title">Tipo di movimento</h4>
+
+        <!-- Direzione PRIMA della tipologia: decide il senso del movimento, i testi delle tre
+             schede e i conti CoGe selezionabili al passo 3. -->
+        <div class="mov-form__tipo-row"
+             [class.mov-form__tipo-row--entrata]="tipoValue === 'ENTRATA'"
+             [class.mov-form__tipo-row--uscita]="tipoValue === 'USCITA'">
+          <label class="mov-form__tipo-label">Direzione</label>
+          <mat-button-toggle-group formControlName="tipo" class="mov-form__tipo-toggle">
+            <mat-button-toggle value="ENTRATA">
+              <mat-icon>arrow_downward</mat-icon>
+              {{ tipoFlusso() === 'soloFinanziario' ? 'Entrata' : 'Ricavo / Entrata' }}
+            </mat-button-toggle>
+            <mat-button-toggle value="USCITA">
+              <mat-icon>arrow_upward</mat-icon>
+              {{ tipoFlusso() === 'soloFinanziario' ? 'Uscita' : 'Costo / Uscita' }}
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
 
         @if (!isEditMode) {
           <p class="mov-form__section-desc">
@@ -112,23 +130,6 @@
             Puoi modificare tutti gli altri dati. Per cambiare il tipo, annulla e ricrea il movimento.
           </p>
         }
-
-        <!-- Direzione (Entrata / Uscita) -->
-        <div class="mov-form__tipo-row"
-             [class.mov-form__tipo-row--entrata]="tipoValue === 'ENTRATA'"
-             [class.mov-form__tipo-row--uscita]="tipoValue === 'USCITA'">
-          <label class="mov-form__tipo-label">Direzione</label>
-          <mat-button-toggle-group formControlName="tipo" class="mov-form__tipo-toggle">
-            <mat-button-toggle value="ENTRATA">
-              <mat-icon>arrow_downward</mat-icon>
-              {{ tipoFlusso() === 'soloFinanziario' ? 'Entrata' : 'Ricavo / Entrata' }}
-            </mat-button-toggle>
-            <mat-button-toggle value="USCITA">
-              <mat-icon>arrow_upward</mat-icon>
-              {{ tipoFlusso() === 'soloFinanziario' ? 'Uscita' : 'Costo / Uscita' }}
-            </mat-button-toggle>
-          </mat-button-toggle-group>
-        </div>
       </div>
       }
 
@@ -169,7 +170,7 @@
             <mat-datepicker-toggle matSuffix [for]="pickerData"></mat-datepicker-toggle>
             <mat-datepicker #pickerData></mat-datepicker>
             <mat-hint>
-              @if (tipoFlusso() === 'differito') { Quando nasce il ricavo (impatto P&amp;L) }
+              @if (tipoFlusso() === 'differito') { Quando nasce {{ tipoValue === 'ENTRATA' ? 'il ricavo' : 'il costo' }} (impatto P&amp;L) }
               @else if (tipoFlusso() === 'soloFinanziario') { Quando avviene il movimento di cassa }
               @else { Data dell'operazione }
             </mat-hint>
@@ -234,11 +235,19 @@
         <h4 class="mov-form__section-title">Conto contabile e controparte</h4>
         <p class="mov-form__section-desc">
           Scegli il conto del piano dei conti su cui registrare e, se serve, il fornitore/controparte.
+          @if (tipoFlusso() === 'soloFinanziario') {
+            Sono elencati i soli conti patrimoniali: il movimento non tocca il conto economico.
+          } @else if (tipoValue === 'ENTRATA') {
+            Sono elencati i soli conti di ricavo, coerenti con la direzione scelta.
+          } @else {
+            Sono elencati i soli conti di costo, oneri finanziari e imposte.
+          }
         </p>
 
         <div class="mov-form__coge-block">
           <app-coge-picker
             label="Conto CoGe" [required]="true"
+            [tipoFilter]="cogeTipoFilter()"
             [value]="form.controls.contoCoge.value"
             [invalid]="form.controls.contoCoge.touched && form.controls.contoCoge.invalid"
             (cogeChange)="setCoge($event)"
@@ -289,13 +298,26 @@
                       matTooltip="Finanziario = quando i soldi entrano o escono effettivamente dal conto"
                       matTooltipPosition="right">info_outline</mat-icon>
           </h4>
-          <span class="mov-form__badge mov-form__badge--finanziario"
-                matTooltip="Finanziario = quando entrano/escono i soldi dal conto corrente">
-            <mat-icon>account_balance</mat-icon> Impatto cassa
-          </span>
+          @if (preview().finanziario !== 0) {
+            <span class="mov-form__badge mov-form__badge--finanziario"
+                  matTooltip="Finanziario = quando entrano/escono i soldi dal conto corrente">
+              <mat-icon>account_balance</mat-icon> Impatto cassa
+            </span>
+          } @else {
+            <span class="mov-form__badge mov-form__badge--neutro"
+                  matTooltip="Finché non è incassato/pagato il saldo del conto non si muove">
+              <mat-icon>schedule</mat-icon> Cassa non ancora movimentata
+            </span>
+          }
         </div>
 
         @if (statoToggleVisible()) {
+          <!-- Al passo 1 si è detto che economico e cassa cadono in date diverse; qui si dice
+               DA CHE PARTE: soldi già passati (movimento vecchio da mettere a libro) oppure
+               ancora attesi (credito/debito aperto). -->
+          <p class="mov-form__section-desc">
+            {{ tipoValue === 'ENTRATA' ? 'I soldi sono già arrivati sul conto?' : 'I soldi sono già usciti dal conto?' }}
+          </p>
           <div class="mov-form__stato-row">
             <mat-button-toggle-group
               [value]="statoFinanziario()"
@@ -474,14 +496,9 @@
               <mat-error>Caratteri non consentiti (&lt; &gt;)</mat-error>
             }
           </mat-form-field>
-          <mat-form-field appearance="outline" class="mov-form__field--sm">
-            <mat-label>Fonte</mat-label>
-            <mat-select formControlName="fonte">
-              @for (f of fonti; track f) {
-                <mat-option [value]="f">{{ f }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
+          <!-- La «Fonte» non si sceglie a mano: un movimento scritto qui è MANUALE, e sui
+               movimenti importati la tendina permetteva di riscrivere la provenienza. Il valore
+               resta nel form e viene rimandato invariato in modifica. -->
         </div>
       </mat-expansion-panel>
       }
@@ -507,7 +524,7 @@
                [class.mov-form__preview-item--positive]="preview().finanziario > 0"
                [class.mov-form__preview-item--negative]="preview().finanziario < 0"
                [class.mov-form__preview-item--zero]="preview().finanziario === 0">
-            <span class="mov-form__preview-label"><mat-icon>account_balance</mat-icon> Impatto finanziario (cassa oggi)</span>
+            <span class="mov-form__preview-label"><mat-icon>account_balance</mat-icon> Impatto finanziario (saldo del conto)</span>
             <strong class="mov-form__preview-value">
               @if (preview().finanziario === 0) { 0€ — non ancora incassato/pagato } @else { {{ preview().finanziario | euro }} }
             </strong>
@@ -538,9 +555,21 @@
           <div class="full"><dt>Descrizione</dt><dd>{{ form.controls.descrizione.value || '—' }}</dd></div>
           <div class="full"><dt>Conto CoGe</dt><dd>{{ reviewCoge }}</dd></div>
           <div><dt>Fornitore</dt><dd>{{ reviewFornitore }}</dd></div>
+          <div><dt>Business Unit</dt><dd>{{ reviewBu }}</dd></div>
           @if (showContoMetodo()) {
             <div><dt>Conto bancario</dt><dd>{{ reviewConto }}</dd></div>
             <div><dt>Metodo</dt><dd>{{ reviewMetodo }}</dd></div>
+          }
+          <!-- La data in cui i soldi si muovono è l'altra metà del movimento: senza, la
+               revisione non permetteva di accorgersi di una scadenza sbagliata. -->
+          @if (tipoFlusso() === 'differito') {
+            @if (statoFinanziario() === 'nonIncassato') {
+              <div><dt>{{ tipoValue === 'ENTRATA' ? 'Scadenza incasso' : 'Scadenza pagamento' }}</dt>
+                <dd>{{ (form.controls.dataLiquidita.value | date:'dd/MM/yyyy') || '—' }}</dd></div>
+            } @else {
+              <div><dt>{{ tipoValue === 'ENTRATA' ? 'Incassato il' : 'Pagato il' }}</dt>
+                <dd>{{ (form.controls.dataFinanziaria.value | date:'dd/MM/yyyy') || '—' }}</dd></div>
+            }
           }
         </dl>
       </div>

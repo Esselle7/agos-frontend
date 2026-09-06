@@ -20,7 +20,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -65,7 +64,6 @@ const STATI: { value: StatoEvento | ''; label: string }[] = [
     MatFormFieldModule,
     MatChipsModule,
     MatDatepickerModule,
-    MatNativeDateModule,
     MatPaginatorModule,
     MatProgressBarModule,
     MatTooltipModule,

@@ -16,7 +16,6 @@ import {
   FormGroup,
   Validators,
   AbstractControl,
-  ValidationErrors,
 } from '@angular/forms';
 import { InputFilterDirective } from '../../shared/directives/input-filter.directive';
 import { DateMaskDirective } from '../../shared/directives/date-mask.directive';
@@ -29,7 +28,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { MatExpansionModule } from '@angular/material/expansion';
@@ -48,6 +46,7 @@ import { CategorieService } from '../../core/services/categorie.service';
 import { FornitoriService } from '../../core/services/fornitori.service';
 import { EventiService } from '../../core/services/eventi.service';
 import { LookupService } from '../../core/services/lookup.service';
+import { BuService } from '../../core/services/bu.service';
 import { BuSelectorComponent } from '../../shared/components/bu-selector/bu-selector.component';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
 import { EuroPipe } from '../../shared/pipes/euro.pipe';
@@ -57,11 +56,9 @@ import { HelpNoteComponent } from '../../shared/components/help-note/help-note.c
 import { MovimentoCreateRequest, MovimentoDTO, TipoMovimento } from '../../core/models/movimenti.models';
 import {
   ContoBancarioDTO, CategoriaNode, FornitoreSummaryDTO,
-  PianoContiCogeDTO, MetodoPagamentoDTO, AliquotaIvaDTO,
+  PianoContiCogeDTO, MetodoPagamentoDTO, AliquotaIvaDTO, BusinessUnitDTO,
 } from '../../core/models/anagrafica.models';
 import { EventoDTO } from '../../core/models/eventi.models';
-
-const FONTI = ['MANUALE', 'IMPORT_BILLY', 'IMPORT_BANCA', 'IMPORT_ALVEARE', 'IMPORT_FATTURA'];
 
 const TIPO_COGE_LABEL: Record<string, string> = {
   RICAVO:    'Ricavi',
@@ -98,7 +95,6 @@ interface PreviewImpatto {
     MatButtonToggleModule,
     MatIconModule,
     MatDatepickerModule,
-    MatNativeDateModule,
     MatSlideToggleModule,
     MatAutocompleteModule,
     MatExpansionModule,
@@ -127,13 +123,12 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
   private readonly fornitoriService = inject(FornitoriService);
   private readonly eventiService = inject(EventiService);
   private readonly lookupService = inject(LookupService);
+  private readonly buService = inject(BuService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroy$ = new Subject<void>();
-
-  readonly fonti = FONTI;
 
   // ── UI-only state: NOT stored in DTO, drives form behavior ─────────────────
   readonly tipoFlusso = signal<TipoFlusso>('immediato');
@@ -157,7 +152,9 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
     const segno = tipo === 'ENTRATA' ? 1 : -1;
 
     const economicoAttivo = flusso !== 'soloFinanziario';
-    const finanziarioOggi = flusso === 'soloFinanziario' || (flusso === 'immediato' && stato === 'incassato');
+    // `differito + incassato` è un movimento vecchio già liquidato: i soldi SONO sul conto.
+    // Escluderlo qui mostrava «Cassa —» su un movimento che invece muove il saldo.
+    const finanziarioOggi = flusso === 'soloFinanziario' || stato === 'incassato';
     const previsione = flusso === 'differito' && stato === 'nonIncassato';
 
     let giorni: number | null = null;
@@ -180,6 +177,18 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
   // ── Computed visibility helpers ─────────────────────────────────────────────
   readonly showContoMetodo = computed(() =>
     this.tipoFlusso() === 'soloFinanziario' || this.statoFinanziario() === 'incassato'
+  );
+
+  /**
+   * Tipi COGE ammessi dalla direzione scelta: su un ricavo non si sceglie un conto di costo
+   * (e viceversa). Non è cosmesi — `mv_conto_economico_mensile` butta via in silenzio le righe
+   * con tipo movimento e tipo conto discordi. I conti patrimoniali si raggiungono dal
+   * «solo finanziario», che è la via d'uscita per giroconti e rettifiche di cassa.
+   */
+  readonly cogeTipoFilter = computed<string[]>(() =>
+    this.tipoFlusso() === 'soloFinanziario' ? ['ATTIVITA', 'PASSIVITA']
+      : this._tipo() === 'ENTRATA' ? ['RICAVO']
+      : ['COSTO', 'ONERE_FINANZIARIO', 'IMPOSTA']
   );
 
   readonly dataLiquiditaRequired = computed(() =>
@@ -214,10 +223,13 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
       differito: {
         icon: 'schedule',
         label: uscita ? 'Economico con pagamento differito' : 'Economico con incasso differito',
-        desc: uscita ? "Il costo è ora, l'uscita di cassa arriva dopo"
-                     : 'Il ricavo è ora, la cassa arriva dopo',
-        esempio: uscita ? 'es. Fattura ricevuta, pagamento a 60gg'
-                        : 'es. Fattura emessa, incasso tra 90gg',
+        // Il passo «Incasso» chiede poi SE il denaro è già passato: qui non si può promettere
+        // che «arriva dopo», altrimenti le due domande si contraddicono. La cassa è in un
+        // momento diverso — prima o dopo lo dice il passo 4.
+        desc: uscita ? "Il costo è ora, la cassa in un'altra data"
+                     : "Il ricavo è ora, la cassa in un'altra data",
+        esempio: uscita ? 'es. Fattura ricevuta a 60gg, o già pagata in altra data'
+                        : 'es. Fattura emessa a 90gg, o già incassata in altra data',
       },
       soloFinanziario: {
         icon: 'swap_horiz',
@@ -243,6 +255,7 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
   loading = signal(false);
   submitting = signal(false);
   conti = signal<ContoBancarioDTO[]>([]);
+  private bu: BusinessUnitDTO[] = [];
   metodiPagamento = signal<MetodoPagamentoDTO[]>([]);
   aliquoteIva = signal<AliquotaIvaDTO[]>([]);
   categoriePadre = signal<CategoriaNode[]>([]);
@@ -291,11 +304,18 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
   get isEditMode(): boolean { return !!this.id; }
   get tipoValue(): TipoMovimento { return this.form.controls.tipo.value; }
 
+  /**
+   * SCORPORO, non moltiplicazione: `importo` è il lordo IVA inclusa, quindi
+   * `imponibile = lordo / (1 + aliquota)` — la stessa formula di
+   * `MovimentiService.applyDerivedAmounts`. Con `lordo * aliquota` l'anteprima diceva 40,07
+   * su 400,70 al 10% mentre a DB ne finivano 36,43: il preview contraddiceva il salvato.
+   */
   get importoIvaCalcolato(): number | null {
-    const imp = this.form.controls.importo.value;
+    const lordo = this.form.controls.importo.value;
     const aliq = this.form.controls.aliquotaIva.value;
-    if (imp != null && aliq != null) return Math.round(imp * aliq * 100) / 100;
-    return null;
+    if (lordo == null || aliq == null) return null;
+    const imponibile = Math.round((lordo / (1 + aliq)) * 100) / 100;
+    return Math.round((lordo - imponibile) * 100) / 100;
   }
 
   get hasBu(): boolean { return this.form.controls.businessUnitId.value !== null; }
@@ -306,7 +326,10 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
       metodi:   this.lookupService.getMetodiPagamento(),
       piano:    this.lookupService.getPianoConti(),
       aliquote: this.lookupService.getAliquoteIva(),
-    }).subscribe(({ conti, metodi, piano, aliquote }) => {
+      // Già in cache: la carica anche <agos-bu-selector>. Serve solo per il nome in revisione.
+      bu:       this.buService.getAll(),
+    }).subscribe(({ conti, metodi, piano, aliquote, bu }) => {
+      this.bu = bu;
       this.conti.set(conti);
       this.metodiPagamento.set(metodi);
       this.aliquoteIva.set(aliquote);
@@ -327,6 +350,7 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
           this.showEventoSection = false;
           this.clearEvento();
         }
+        this.clearCogeSeFuoriFiltro();
         this.cdr.markForCheck();
       });
     this.form.controls.dataLiquidita.valueChanges.pipe(takeUntil(this.destroy$))
@@ -420,8 +444,22 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
       this.form.controls.dataLiquidita.setValue(null, { emitEvent: false });
       this.form.controls.dataFinanziaria.setValue(null, { emitEvent: false });
     }
+    this.clearCogeSeFuoriFiltro();
     this.updateDynamicValidators();
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Cambiata direzione o flusso, un conto ora fuori filtro va tolto: resterebbe salvato nel
+   * form pur non essendo più visibile nel picker, e il movimento nascerebbe con tipo e conto
+   * discordi. In caricamento (edit) non si tocca nulla: il conto arriva dal DB.
+   */
+  private clearCogeSeFuoriFiltro(): void {
+    if (this.loading()) return;
+    const id = this.form.controls.contoCoge.value;
+    if (!id) return;
+    const conto = this.pianoContiAll.find(c => c.id === +id);
+    if (conto && !this.cogeTipoFilter().includes(conto.tipo)) this.setCoge(null);
   }
 
   onStatoFinanziarioChange(value: StatoFinanziario): void {
@@ -451,7 +489,10 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
 
     contoCtrl.setValidators(bancariaRequired ? Validators.required : null);
     metodoCtrl.setValidators(bancariaRequired ? Validators.required : null);
-    dataLiqCtrl.setValidators(liqRequired ? [Validators.required, futureDateValidator] : null);
+    // Nessun vincolo di data futura: una fattura scaduta e non ancora incassata è il caso
+    // NORMALE da registrare (i crediti aperti di luglio), e il validatore la rendeva
+    // impossibile da inserire.
+    dataLiqCtrl.setValidators(liqRequired ? Validators.required : null);
     dataFinCtrl.setValidators(finRequired ? Validators.required : null);
 
     contoCtrl.updateValueAndValidity({ emitEvent: false });
@@ -508,8 +549,11 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
       dataFinanziaria:     dataFinanziariaVal,
       dataLiquidita:       dataLiquiditaVal,
       importoLordo:        null,
-      aliquotaIva:         mov.importoIva && mov.importo
-                             ? Math.round((mov.importoIva / mov.importo) * 100) / 100
+      // L'aliquota si ricava da iva/IMPONIBILE, non da iva/lordo: quest'ultimo dà 0,09 per il
+      // 10% e 0,18 per il 22% — valori che non esistono in `aliquote_iva`, quindi la tendina
+      // restava vuota su ogni movimento con IVA.
+      aliquotaIva:         mov.importoIva && mov.importoImponibile
+                             ? Math.round((mov.importoIva / mov.importoImponibile) * 100) / 100
                              : null,
       note:                mov.note,
       riferimentoEsterno:  mov.riferimentoEsterno,
@@ -696,6 +740,10 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
   // ── Etichette per lo step di revisione (risolte dai lookup già caricati) ─────────────
   get reviewCoge(): string { return this.cogeDisplayLabel(this.form.controls.contoCoge.value) || '—'; }
   get reviewFornitore(): string { return this.fornitoreSearch.value || '—'; }
+  get reviewBu(): string {
+    const id = this.form.controls.businessUnitId.value;
+    return this.bu.find(b => b.id === id)?.nome ?? '—';
+  }
   get reviewConto(): string {
     const id = this.form.controls.contoBancarioId.value;
     return this.conti().find(c => c.id === id)?.nome ?? '—';
@@ -826,10 +874,3 @@ export class MovimentiFormComponent implements OnInit, OnDestroy {
   }
 }
 
-// Standalone validator: data prevista non può essere nel passato
-function futureDateValidator(ctrl: AbstractControl): ValidationErrors | null {
-  if (!ctrl.value) return null;
-  const oggi = new Date(); oggi.setHours(0, 0, 0, 0);
-  const d = new Date(ctrl.value); d.setHours(0, 0, 0, 0);
-  return d < oggi ? { dataPassata: true } : null;
-}
