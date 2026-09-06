@@ -102,12 +102,17 @@ export class ScadenzarioComponent implements OnInit {
     this.tutte().filter(v => v.scaduto && !v.saldato).sort((a, b) => a.gg - b.gg));
 
   // ── KPI ──────────────────────────────────────────────────────────────────
+  // I due KPI del credito guardano insiemi DISGIUNTI, e devono restare tali: dal 05/09/2026 il
+  // backend tiene il credito degli eventi fuori da entrateDaRicevere (evento_id IS NULL), perche'
+  // la riga di competenza dell'evento vale esattamente il residuo mostrato nella colonna Eventi.
+  // Sommarli qui da' il credito totale verso terzi; prima lo stesso euro entrava in tutti e due.
   readonly totaleDaPagare = computed(() =>
     this.uscite().filter(v => !v.saldato).reduce((s, v) => s + v.importo, 0));
   readonly totaleDaRicevere = computed(() =>
     this.entrate().filter(v => !v.saldato).reduce((s, v) => s + v.importo, 0));
+  readonly totaleDaSaldareEventi = computed(() =>
+    this.eventi().filter(v => !v.saldato).reduce((s, v) => s + v.importo, 0));
   readonly nEventi = computed(() => this.eventi().filter(v => !v.saldato).length);
-  readonly nRicorrenti = computed(() => this.ricorrenti().filter(v => !v.saldato).length);
 
   /** Spaccato degli scaduti per natura, per il testo del banner. */
   readonly scadutiPerTipo = computed(() => {

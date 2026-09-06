@@ -28,14 +28,24 @@
         <mat-button-toggle [value]="h.value">{{ h.label }}</mat-button-toggle>
       }
     </mat-button-toggle-group>
-    <button mat-stroked-button
-            class="fc-stima-toggle"
-            [class.fc-filtro--active]="includiStime()"
-            (click)="includiStime.set(!includiStime())"
-            matTooltip="Include la stima dei ricavi cash ricorrenti (cassa ristorante, spaccio) — media per giorno della settimana, ultime 8 sett., fino a +90 gg">
-      <mat-icon>{{ includiStime() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-      Includi stime
-    </button>
+    <!-- P7: finché il gate di sufficienza dati non passa non c'è nessuna stima da includere,
+         quindi il toggle non è cliccabile e il tooltip dice il perché.
+         Il tooltip sta sullo SPAN, non sul bottone: `disabled` mette pointer-events:none, quindi
+         un bottone disabilitato non riceve mai il mouseenter e il suo tooltip non si apre —
+         verificato il 06/09/2026 (hover reale: «<div class="fc-horizon-row"> intercepts pointer
+         events»). Era proprio il caso da spiegare a restare senza spiegazione. -->
+    <span class="fc-stima-wrap"
+          [matTooltip]="notaStime()
+            ?? 'Include ricavi cash stimati (media per giorno della settimana, ultime 8 sett., fino a +90 gg) e costi ricorrenti stimati (media mensile per conto)'">
+      <button mat-stroked-button
+              class="fc-stima-toggle"
+              [class.fc-filtro--active]="includiStime() && stimeDisponibili()"
+              [disabled]="!hasData || !stimeDisponibili()"
+              (click)="includiStime.set(!includiStime())">
+        <mat-icon>{{ includiStime() && stimeDisponibili() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        Includi stime
+      </button>
+    </span>
     <span class="fc-horizon-note">
       <mat-icon>info_outline</mat-icon>
       Previsione da domani · CERTO = contrattualizzato (eventi, rate, stipendi); STIMA = ricavi cash su base storica
@@ -56,6 +66,18 @@
   }
 
   @if (hasData && !loading()) {
+
+    <!-- P6: su che dato stiamo prevedendo. Sopra i KPI, non in fondo: è l'informazione che
+         rende interpretabili tutte le altre. -->
+    @if (asIs!.datiIncompleti) {
+      <div class="card fc-freschezza" role="status">
+        <mat-icon>schedule</mat-icon>
+        <div>
+          <strong>Previsione su dati non aggiornati.</strong>
+          <span>{{ asIs!.nota }}</span>
+        </div>
+      </div>
+    }
 
     <!-- ══════════════════════════════
          SITUAZIONE AS IS
@@ -158,9 +180,12 @@
               <span>Ricavi previsti (certo)</span>
               <span class="text-success">{{ economico!.ricaviPrevisti | euro }}</span>
             </div>
+            <!-- «+ Stima», non «+ di cui stimato»: la stima NON è contenuta nel certo (il backend
+                 esclude le righe STIMATO dai subtotali, ForecastingService:280-293), quindi la riga
+                 sotto la SOMMA. Dire «di cui» affermerebbe un contenimento che non c'è. -->
             @if (includiStime() && stimaTotale() > 0) {
               <div class="fc-riepilogo__row fc-riepilogo__row--stima">
-                <span>+ di cui stimato (ricavi cash)</span>
+                <span>+ Stima ricavi cash</span>
                 <span class="text-info">{{ stimaTotale() | euro }}</span>
               </div>
               <div class="fc-riepilogo__row fc-riepilogo__row--total">
@@ -169,34 +194,33 @@
               </div>
             }
             <div class="fc-riepilogo__row">
-              <span>Costi previsti</span>
+              <span>− Costi previsti</span>
               <span class="text-danger">{{ economico!.costiPrevisti | euro }}</span>
             </div>
-            <div class="fc-riepilogo__row fc-riepilogo__row--total">
-              <span>EBITDA previsto</span>
-              <span [class.text-success]="economico!.ebitdaPrevisto >= 0"
-                    [class.text-danger]="economico!.ebitdaPrevisto < 0">
-                {{ economico!.ebitdaPrevisto | euro }}
-              </span>
-            </div>
-            @if (economico!.ammortamentiPrevisti > 0) {
-              <div class="fc-riepilogo__row">
-                <span>− Ammortamenti (cespiti)</span>
-                <span class="text-danger">{{ economico!.ammortamentiPrevisti | euro }}</span>
+            <!-- Simmetrico ai ricavi, e per lo stesso motivo di P3: una riga «−» sopra un totale
+                 che non la sottrae è aritmetica falsa sullo schermo. L'EBITDA qui sotto sta sul
+                 solo CERTO, quindi la stima costi si chiude nel SUO totale prima di arrivarci. -->
+            @if (includiStime() && stimaCostiTotale() > 0) {
+              <div class="fc-riepilogo__row fc-riepilogo__row--stima">
+                <span>+ Stima costi ricorrenti</span>
+                <span class="text-info">{{ stimaCostiTotale() | euro }}</span>
               </div>
-            }
-            @if (economico!.oneriFinanziariPrevisti > 0) {
-              <div class="fc-riepilogo__row">
-                <span>− Oneri finanziari previsti</span>
-                <span class="text-danger">{{ economico!.oneriFinanziariPrevisti | euro }}</span>
-              </div>
-            }
-            @if (economico!.ammortamentiPrevisti > 0 || economico!.oneriFinanziariPrevisti > 0) {
               <div class="fc-riepilogo__row fc-riepilogo__row--total">
-                <span>EBIT previsto</span>
-                <span [class.text-success]="economico!.ebitPrevisto >= 0"
-                      [class.text-danger]="economico!.ebitPrevisto < 0">
-                  {{ economico!.ebitPrevisto | euro }}
+                <span>Costi combinati</span>
+                <span class="text-danger">{{ economico!.costiPrevisti + stimaCostiTotale() | euro }}</span>
+              </div>
+            }
+            @if (notaStime(); as nota) {
+              <p class="fc-riepilogo__nota">{{ nota }}</p>
+            }
+            <!-- P3: cascata EBITDA → EBIT → EBT costruita da cascataEconomica(), così ogni riga
+                 di sottrazione è davvero sottratta dal totale che la segue. -->
+            @for (r of cascata(); track r.label) {
+              <div class="fc-riepilogo__row" [class.fc-riepilogo__row--total]="!r.sottrazione">
+                <span>{{ r.label }}</span>
+                <span [class.text-danger]="r.sottrazione || r.valore < 0"
+                      [class.text-success]="!r.sottrazione && r.valore >= 0">
+                  {{ r.valore | euro }}
                 </span>
               </div>
             }
@@ -210,42 +234,25 @@
             <span class="fc-riepilogo__sub">Flussi di cassa attesi</span>
           </div>
           <div class="fc-riepilogo__rows">
-            <div class="fc-riepilogo__row">
-              <span>Saldo oggi</span>
-              <span [class.text-success]="finanziario!.saldoPartenza >= 0"
-                    [class.text-danger]="finanziario!.saldoPartenza < 0">
-                {{ finanziario!.saldoPartenza | euro }}
-              </span>
-            </div>
-            <div class="fc-riepilogo__row">
-              <span>+ Incassi attesi (certo)</span>
-              <span class="text-success">{{ finanziario!.incassiPrevisti | euro }}</span>
-            </div>
-            @if (includiStime() && stimaTotale() > 0) {
-              <div class="fc-riepilogo__row fc-riepilogo__row--stima">
-                <span>+ di cui stimato (ricavi cash)</span>
-                <span class="text-info">{{ stimaTotale() | euro }}</span>
-              </div>
-            }
-            <div class="fc-riepilogo__row">
-              <span>− Uscite attese</span>
-              <span class="text-danger">{{ finanziario!.uscitePreviste | euro }}</span>
-            </div>
-            <div class="fc-riepilogo__row fc-riepilogo__row--total">
-              <span>Saldo finale previsto</span>
-              <span [class.text-success]="finanziario!.saldoFinale >= 0"
-                    [class.text-danger]="finanziario!.saldoFinale < 0">
-                {{ finanziario!.saldoFinale | euro }}
-              </span>
-            </div>
-            @if (includiStime() && stimaTotale() > 0) {
-              <div class="fc-riepilogo__row fc-riepilogo__row--total">
-                <span>Saldo finale + stime</span>
-                <span [class.text-success]="(finanziario!.saldoFinale + stimaTotale()) >= 0"
-                      [class.text-danger]="(finanziario!.saldoFinale + stimaTotale()) < 0">
-                  {{ finanziario!.saldoFinale + stimaTotale() | euro }}
+            @for (r of riepilogoFin(); track r.label) {
+              <div class="fc-riepilogo__row"
+                   [class.fc-riepilogo__row--total]="r.kind === 'totale'"
+                   [class.fc-riepilogo__row--stima]="r.kind === 'stima'"
+                   [class.fc-riepilogo__row--fuori]="r.kind === 'fuori'">
+                <span>{{ r.label }}</span>
+                <span [class.text-success]="(r.kind === 'base' || r.kind === 'totale') ? r.valore >= 0 : r.kind === 'entrata'"
+                      [class.text-danger]="(r.kind === 'base' || r.kind === 'totale') ? r.valore < 0 : r.kind === 'uscita'"
+                      [class.text-info]="r.kind === 'stima' || r.kind === 'fuori'">
+                  {{ r.valore | euro }}
                 </span>
               </div>
+              @if (r.kind === 'fuori') {
+                <p class="fc-riepilogo__nota">
+                  Fuori dal saldo previsto: sono ricavi di eventi già svolti e non ancora incassati,
+                  senza una data attesa di incasso. Parte di questo importo potrebbe essere già in
+                  banca e non ancora importato.
+                </p>
+              }
             }
           </div>
         </div>

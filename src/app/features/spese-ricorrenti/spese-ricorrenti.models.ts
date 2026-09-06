@@ -35,7 +35,10 @@ export interface PlanSummaryDTO {
   rateSkipped: number;
   rateCancelled: number;
   totalePagato: number;
+  /** Quanto resta da sborsare: capitale + interessi delle rate PENDING. */
   totaleResiduo: number;
+  /** Quanto si deve ancora alla banca: solo la quota capitale delle rate PENDING. */
+  debitoResiduo: number;
 }
 
 /** Modifica di un piano esistente: solo anagrafica + riconoscimento, mai gli importi. */

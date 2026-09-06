@@ -24,6 +24,9 @@
     l'incasso. Le <strong>fatture da pagare</strong> sono uscite non ancora liquidate; gli
     <strong>incassi da ricevere</strong> sono entrate ancora da incassare. Quando la data passa senza
     che il movimento sia chiuso, la voce diventa <strong>scaduta</strong> e te la segnaliamo in rosso.
+    Il denaro che devi ancora ricevere dai clienti degli <strong>eventi</strong> sta solo nella colonna
+    Eventi, non fra gli incassi da ricevere: così nessun euro viene contato due volte, e i due totali
+    si possono sommare.
   </agos-help-note>
 
   @if (loading()) {
@@ -64,12 +67,13 @@
       <div class="scad__kpi-card is-entrata">
         <span class="scad__kpi-ic"><mat-icon>trending_up</mat-icon></span>
         <span class="scad__kpi-val">{{ totaleDaRicevere() | euro }}</span>
-        <span class="scad__kpi-lbl">Da ricevere nel periodo</span>
+        <span class="scad__kpi-lbl">Crediti da incassare</span>
       </div>
       <div class="scad__kpi-card is-evento">
         <span class="scad__kpi-ic"><mat-icon>celebration</mat-icon></span>
-        <span class="scad__kpi-val">{{ nEventi() }}</span>
-        <span class="scad__kpi-lbl">Eventi in arrivo</span>
+        <span class="scad__kpi-val">{{ totaleDaSaldareEventi() | euro }}</span>
+        <span class="scad__kpi-lbl">Da saldare su {{ nEventi() }}
+          {{ nEventi() === 1 ? 'evento' : 'eventi' }}</span>
       </div>
       <div class="scad__kpi-card" [class.is-late]="scaduti().length" [class.is-ok]="!scaduti().length">
         <span class="scad__kpi-ic">

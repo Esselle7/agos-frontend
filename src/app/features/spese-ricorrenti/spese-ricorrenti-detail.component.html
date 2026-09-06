@@ -73,9 +73,15 @@
         <span class="srd-kpi__value srd-kpi__value--paid">{{ p.totalePagato | euro }}</span>
       </div>
       <div class="srd-kpi">
-        <span class="srd-kpi__label">Residuo</span>
+        <span class="srd-kpi__label">Da pagare (rate residue)</span>
         <span class="srd-kpi__value srd-kpi__value--residuo">{{ p.totaleResiduo | euro }}</span>
       </div>
+      @if (p.tipoPiano === 'FINANZIAMENTO') {
+        <div class="srd-kpi">
+          <span class="srd-kpi__label">Debito residuo</span>
+          <span class="srd-kpi__value srd-kpi__value--residuo">{{ p.debitoResiduo | euro }}</span>
+        </div>
+      }
       <div class="srd-kpi">
         <span class="srd-kpi__label">Avanzamento</span>
         <div class="srd-kpi__progress">
