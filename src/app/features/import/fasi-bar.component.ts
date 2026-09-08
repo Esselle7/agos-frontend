@@ -109,8 +109,10 @@ export class FasiBarComponent {
       restanti: () => this.c().matchingDifferiti, soloSePiena: true },
     { label: 'Fuori dai conti', link: 'scartati',       restanti: () => this.c().scartati, rosso: true },
     // «Da rileggere»: righe che l'import non ha saputo interpretare. Compare solo quando ce n'è
-    // davvero (di norma è vuota) e porta allo Storico import, dove si ri-processano in blocco.
-    { label: 'Da rileggere',    link: 'storico',        restanti: () => this.c().daRileggere,
+    // davvero (di norma è vuota) e porta alla coda che le risolve una per una. Fino all'08/09/2026
+    // puntava allo Storico, che non ha nessuna azione: il contatore diceva «1» e non c'era un
+    // posto dove chiudere quella riga.
+    { label: 'Da rileggere',    link: 'da-rileggere',   restanti: () => this.c().daRileggere,
       soloSePiena: true, rosso: true },
     { label: 'Duplicati',       link: 'smistamento/duplicati', restanti: () => this.c().duplicati },
     { label: 'Fatto',           link: 'fatto',          restanti: () => this.restaLavoro() },

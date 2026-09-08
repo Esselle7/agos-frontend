@@ -12,7 +12,7 @@ import { forkJoin } from 'rxjs';
 import { MovimentiService } from '../../core/services/movimenti.service';
 import { EventiService } from '../../core/services/eventi.service';
 import { EventoParcheggiatoDTO } from '../../core/models/movimenti.models';
-import { EventoDTO, PagamentoEventoDTO, TipoPagamentoEvento, TIPI_PAGAMENTO_EVENTO } from '../../core/models/eventi.models';
+import { EventoDTO, PagamentoEventoDTO, TipoPagamentoEvento, TipoPagamentoLetto, TIPI_PAGAMENTO_EVENTO } from '../../core/models/eventi.models';
 import { HelpNoteComponent } from '../../shared/components/help-note/help-note.component';
 import { ImportCountsService } from './import-counts.service';
 
@@ -580,7 +580,12 @@ export class IncassiEventoWizardComponent implements OnInit {
    * backend in `buildEventoDTO`: niente chiamata in più. `null` quando non c'è nulla da dire.
    */
   readonly pagamentiEsistenti = computed(() => {
-    const p = this.eventoScelto()?.pagamenti?.filter(x => x.stato !== 'ANNULLATO') ?? [];
+    const p = this.eventoScelto()?.pagamenti
+      ?.filter(x => x.stato !== 'ANNULLATO')
+      // COMPETENZA è il ricavo maturato alla data evento, NON un incasso: in produzione
+      // (08/09/2026) le 20 righe COMPETENZA hanno tutte data_finanziaria e conto bancario
+      // NULL. Sotto «risulta già incassato» direbbe che sono arrivati soldi che non ci sono.
+      ?.filter(x => x.tipo !== 'COMPETENZA') ?? [];
     return p.length ? p : null;
   });
 
@@ -594,9 +599,16 @@ export class IncassiEventoWizardComponent implements OnInit {
     return !!r && p.importo === r.importo && p.dataFinanziaria === r.dataMovimento;
   }
 
-  /** «Un acconto» → «acconto»: nella lista dei già incassati l'articolo è rumore. */
-  parolaBreve(t: TipoPagamentoEvento): string {
-    return PAROLE_TIPO[t].replace(/^(Una |Un |Il )/, '');
+  /**
+   * «Un acconto» → «acconto»: nella lista dei già incassati l'articolo è rumore.
+   *
+   * <p>Il tipo arriva dal server come stringa libera ({@code PagamentoEventoDTO.tipo}): un codice
+   * che il frontend non mappa si mostra com'è invece di abortire il render dell'intera pagina —
+   * stesso precedente di {@code evento-detail.pagColor/pagIcon}. Fail Fast sta nel tipo
+   * {@link TipoPagamentoLetto}, non qui: qui si degrada, non si nasconde.
+   */
+  parolaBreve(t: TipoPagamentoLetto): string {
+    return (PAROLE_TIPO[t as TipoPagamentoEvento] ?? t).replace(/^(Una |Un |Il )/, '');
   }
 
   /**

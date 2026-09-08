@@ -35,6 +35,13 @@ export const importRoutes: Routes = [
         loadComponent: () => import('./rate-wizard.component').then(m => m.RateWizardComponent),
       },
       {
+        // Coda «Da rileggere»: righe che l'import non ha saputo interpretare (import_ambiguita).
+        // Il badge la contava dal 20/08/2026 ma non c'era nessuna schermata dove risolverle.
+        path: 'da-rileggere',
+        loadComponent: () =>
+          import('./da-rileggere.component').then(m => m.DaRileggereComponent),
+      },
+      {
         // Coda «Righe fuori dai conti»: righe bancarie escluse dalla pipeline (audit §7.4)
         path: 'scartati',
         loadComponent: () =>

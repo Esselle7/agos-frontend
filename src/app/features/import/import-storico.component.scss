@@ -5,11 +5,12 @@
     &.ok { background: var(--tint-success); color: var(--success); }
     &.warn { background: var(--tint-warning); color: var(--warning); }
     &.err { background: var(--tint-danger); color: var(--danger); } }
+  &__periodo { white-space: nowrap; font-variant-numeric: tabular-nums; }
   &__stato { font-weight: 700; font-size: .85rem; }
   &__azioni { display: flex; gap: .35rem; align-items: center; justify-content: flex-end; }
 }
 
 @media (max-width: 768px) {
   .storico { overflow-x: auto; }
-  .storico__table { min-width: 520px; }
+  .storico__table { min-width: 640px; }
 }
