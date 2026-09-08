@@ -27,6 +27,7 @@ import {
   EventoPartecipanteDTO,
   StatoEvento,
   TipoPagamentoEvento,
+  TipoPagamentoLetto,
 } from '../../core/models/eventi.models';
 import { BusinessUnitDTO } from '../../core/models/anagrafica.models';
 import { EuroPipe } from '../../shared/pipes/euro.pipe';
@@ -219,9 +220,11 @@ export class EventoDetailComponent implements OnInit, OnDestroy {
 
   openPagamento(): void {
     const ev = this.evento()!;
+    // COMPETENZA non è un pagamento: non deve togliere un tipo dai selezionabili del form.
     const tipiGiaPresenti = ev.pagamenti
       .filter(p => p.stato !== 'ANNULLATO')
-      .map(p => p.tipo);
+      .map(p => p.tipo)
+      .filter((t): t is TipoPagamentoEvento => t !== 'COMPETENZA');
 
     import('./pagamento-form-dialog.component').then(m => {
       this.dialog.open(m.PagamentoFormDialogComponent, {
@@ -513,8 +516,10 @@ export class EventoDetailComponent implements OnInit, OnDestroy {
 
   // ── Template helpers ──────────────────────────────────────────────────────
 
-  pagColor(tipo: TipoPagamentoEvento): string { return PAGAMENTO_COLORS[tipo] ?? '#9E9E9E'; }
-  pagIcon(tipo: TipoPagamentoEvento):  string { return PAGAMENTO_ICONE[tipo]  ?? 'payments'; }
+  // Il tipo arriva dal server e può essere COMPETENZA, che le due mappe non hanno: il `??`
+  // era già qui, la firma ora lo dichiara (vedi TipoPagamentoLetto).
+  pagColor(tipo: TipoPagamentoLetto): string { return PAGAMENTO_COLORS[tipo as TipoPagamentoEvento] ?? '#9E9E9E'; }
+  pagIcon(tipo: TipoPagamentoLetto):  string { return PAGAMENTO_ICONE[tipo as TipoPagamentoEvento]  ?? 'payments'; }
 
   statoColor(stato: StatoEvento): string { return STATO_COLORS[stato] ?? '#9E9E9E'; }
   buNome(buId: number): string { return this.buMap().get(buId)?.nome ?? `BU#${buId}`; }

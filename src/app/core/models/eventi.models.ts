@@ -16,9 +16,22 @@ export const TIPI_PAGAMENTO_EVENTO: readonly TipoPagamentoEvento[] =
 /** Sottotipi creabili dal form (esclude RIMBORSO che è generato in altri flussi). */
 export type TipoPagamentoForm = Exclude<TipoPagamentoEvento, 'RIMBORSO'>;
 
+/**
+ * Ciò che il server può DAVVERO mettere in `PagamentoEventoDTO.tipo`.
+ *
+ * `lk_tipi_evento_mov` ha SEI codici: ai cinque sopra si aggiunge COMPETENZA (Fase 4 — ricavo
+ * maturato alla data evento, non ancora incassato), e `buildEventoDTO` mappa la colonna
+ * verbatim, senza filtrare per tipo. Il tipo stretto qui sopra descrive ciò che si SCEGLIE,
+ * non ciò che si LEGGE: tenerli distinti è ciò che impedisce di indicizzare una
+ * `Record<TipoPagamentoEvento, …>` con un codice che non c'è dentro (crash del 08/09/2026,
+ * `parolaBreve` → «Cannot read properties of undefined (reading 'replace')»).
+ */
+export type TipoPagamentoLetto = TipoPagamentoEvento | 'COMPETENZA';
+
 export interface PagamentoEventoDTO {
   movimentoId: string;
-  tipo: TipoPagamentoEvento;
+  /** Letto dal server: può essere COMPETENZA, che NON è un incasso. Vedi TipoPagamentoLetto. */
+  tipo: TipoPagamentoLetto;
   /** ADMIN-only: null per i DIPENDENTE. Negativo per RIMBORSO. */
   importo: number | null;
   dataFinanziaria: string;
