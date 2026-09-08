@@ -31,7 +31,7 @@ export class ImportStoricoComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly counts = inject(ImportCountsService);
 
-  readonly displayedColumns = ['dataImport', 'fonte', 'righe', 'stato', 'azioni'];
+  readonly displayedColumns = ['dataImport', 'periodo', 'fonte', 'righe', 'stato', 'azioni'];
   result = signal<PagedResponse<ImportLogDTO> | null>(null);
   loading = signal(true);
   rollingBack = signal<string | null>(null);
@@ -92,6 +92,26 @@ export class ImportStoricoComponent implements OnInit {
   fonteLabel(f: string): string {
     return ({ IMPORT_BILLY: 'Billy', IMPORT_BANCA: 'Banca', IMPORT_CONGIUNTO: 'Congiunto' } as Record<string, string>)[f] ?? f;
   }
+  /**
+   * «1–31 lug 2026»: il periodo COPERTO dal file, che è la domanda del titolare («per quali
+   * periodi ho fatto import»), non il giorno in cui l'ha caricato. Si mostra l'intervallo reale
+   * anche quando è largo — l'import del 19/08 contiene 129 righe di luglio e 15 sparse da
+   * gennaio: dire «luglio» nasconderebbe quelle 15.
+   */
+  periodo(log: ImportLogDTO): string {
+    const { periodoDal: dal, periodoAl: al } = log;
+    if (!dal || !al) return '—';
+    const [ay, am] = [dal.slice(0, 4), dal.slice(5, 7)];
+    const [by, bm] = [al.slice(0, 4), al.slice(5, 7)];
+    const g = (s: string) => String(Number(s.slice(8, 10)));
+    const m = (s: string) => new Date(s + 'T12:00:00')
+      .toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
+    if (dal === al) return `${g(dal)} ${m(dal)} ${ay}`;
+    if (ay === by && am === bm) return `${g(dal)}–${g(al)} ${m(al)} ${by}`;
+    if (ay === by) return `${g(dal)} ${m(dal)} – ${g(al)} ${m(al)} ${by}`;
+    return `${g(dal)} ${m(dal)} ${ay} – ${g(al)} ${m(al)} ${by}`;
+  }
+
   formatDate(str: string): string {
     if (!str) return '—';
     return new Date(str).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });

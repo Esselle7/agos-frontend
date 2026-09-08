@@ -183,6 +183,12 @@ export interface ImportLogDTO {
   righeParcheggiate: number | null;
   stato: string;
   importedBy: string | null;
+  /**
+   * Periodo di riferimento del FILE (min/max `data_movimento` dei movimenti importati), non la
+   * data di caricamento. `null` quando l'import non ha lasciato movimenti a libro.
+   */
+  periodoDal: string | null;
+  periodoAl: string | null;
 }
 
 // ── Triage assistito / KPI / regole data-driven (ETL v2 §8/§9/§13) ──────────

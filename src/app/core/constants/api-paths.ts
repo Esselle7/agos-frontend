@@ -51,6 +51,8 @@ export const API_PATHS = {
     IMPORT_CONGIUNTO: '/api/movimenti/import/congiunto',
     IMPORT_HISTORY:   '/api/movimenti/import/history',
     IMPORT_AMBIGUITA:     (logId: string) => `/api/movimenti/import/${logId}/ambiguita`,
+    /** Tutte le righe da rileggere, di ogni import: lo stesso insieme che conta il badge. */
+    AMBIGUITA_TUTTE:      '/api/movimenti/import/ambiguita',
     // ponytail: TEMPORANEO (SPEC bpm-luglio-2026-recupero.md R8), si cancella con il bottone.
     CLASSIFICA_AMBIGUITA: (id: string)    => `/api/movimenti/import/ambiguita/${id}/classifica`,
     AMBIGUITA_E_UN_EVENTO: (id: string)   => `/api/movimenti/import/ambiguita/${id}/e-un-evento`,

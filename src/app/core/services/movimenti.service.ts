@@ -253,6 +253,14 @@ export class MovimentiService {
     );
   }
 
+  /** Le righe da rileggere di TUTTI gli import — quelle che il badge «Da rileggere» conta. */
+  getAmbiguitaTutte(stato = 'DA_CLASSIFICARE', page = 0, size = 50): Observable<PagedResponse<AmbiguitaDTO>> {
+    const params = new HttpParams().set('stato', stato).set('page', page).set('size', size);
+    return this.http.get<PagedResponse<AmbiguitaDTO>>(
+      environment.apiBaseUrl + API_PATHS.MOVIMENTI.AMBIGUITA_TUTTE, { params }
+    );
+  }
+
   classificaAmbiguita(id: string, req: ClassificaAmbiguitaRequest): Observable<void> {
     return this.http.put<void>(
       environment.apiBaseUrl + API_PATHS.MOVIMENTI.CLASSIFICA_AMBIGUITA(id),

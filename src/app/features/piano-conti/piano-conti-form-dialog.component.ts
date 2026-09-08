@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, viewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { switchMap } from 'rxjs';
 import { ReactiveFormsModule, FormControl, FormGroup, Validators } from '@angular/forms';
@@ -28,6 +29,11 @@ export interface PianoContiFormData {
 
 interface PreviewRow { codice: string; nome: string; depth: number; isNew: boolean; }
 
+/** Chiave di confronto per la ricerca: minuscolo e senza accenti (così "Cassa" trova "cassà"). */
+export function norm(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 @Component({
   selector: 'app-piano-conti-form-dialog',
   standalone: true,
@@ -41,6 +47,7 @@ interface PreviewRow { codice: string; nome: string; depth: number; isNew: boole
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    NgTemplateOutlet,
   ],
   template: `
     <h2 mat-dialog-title>{{ isEdit ? 'Modifica conto' : 'Nuovo conto' }}</h2>
@@ -65,15 +72,7 @@ interface PreviewRow { codice: string; nome: string; depth: number; isNew: boole
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Conto padre (opzionale)</mat-label>
-          <mat-select formControlName="parentId">
-            <mat-option [value]="null">— Conto di primo livello —</mat-option>
-            @for (c of parentOptions(); track c.id) {
-              <mat-option [value]="c.id">{{ c.indent }}{{ c.nome }} <span class="pc-code-muted">{{ c.codice }}</span></mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        <ng-container [ngTemplateOutlet]="campoPadre" />
 
         <div class="pc-form__codice">
           <mat-form-field appearance="outline" class="pc-form__codice-field">
@@ -136,16 +135,7 @@ interface PreviewRow { codice: string; nome: string; depth: number; isNew: boole
 
           <div class="pcx__step">
             <span class="pcx__step-label"><b>3.</b> In quale gruppo? <span class="pcx__opt">facoltativo</span></span>
-            <mat-form-field appearance="outline">
-              <mat-label>Conto padre</mat-label>
-              <mat-select formControlName="parentId">
-                <mat-option [value]="null">— Conto di primo livello —</mat-option>
-                @for (c of parentOptions(); track c.id) {
-                  <mat-option [value]="c.id">{{ c.indent }}{{ c.nome }} <span class="pc-code-muted">{{ c.codice }}</span></mat-option>
-                }
-              </mat-select>
-              <mat-hint>{{ tipoSig() ? 'Il codice si genera da solo, lo vedi qui accanto' : 'Scegli prima la natura' }}</mat-hint>
-            </mat-form-field>
+            <ng-container [ngTemplateOutlet]="campoPadre" />
           </div>
 
           @if (errore()) {
@@ -183,6 +173,45 @@ interface PreviewRow { codice: string; nome: string; depth: number; isNew: boole
       </mat-dialog-content>
     }
 
+    <!-- Campo "conto padre" (ricerca sticky + opzioni filtrate): uno solo, condiviso dai due rami.
+         Il template porta l'INTERO mat-form-field, non solo le opzioni: dentro <mat-select> le
+         mat-option devono essere DOM diretto, se nascono da un ngTemplateOutlet il pannello non si
+         apre nemmeno (mat-select._canOpen() vuole options.length > 0 PRIMA dell'apertura). -->
+    <ng-template #campoPadre>
+      <!-- Il formGroup va RIPETUTO qui: un ng-template risolve le direttive dal punto di
+           DICHIARAZIONE, non da dove l'outlet lo inserisce (senza, NG01050 sul formControlName). -->
+      <ng-container [formGroup]="form">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ isEdit ? 'Conto padre (opzionale)' : 'Conto padre' }}</mat-label>
+        <mat-select formControlName="parentId" (openedChange)="onParentPanel($event)">
+          <div class="pc-search" (click)="$event.stopPropagation()">
+            <mat-icon>search</mat-icon>
+            <input #parentSearch type="text" placeholder="Cerca per nome o codice…" autocomplete="off"
+                   aria-label="Cerca conto padre"
+                   [value]="parentQuery()" (input)="parentQuery.set(parentSearch.value)"
+                   (keydown)="onSearchKeydown($event)" />
+            @if (parentQuery()) {
+              <button type="button" class="pc-search__clear" aria-label="Pulisci"
+                      (click)="parentQuery.set(''); parentSearch.focus()"><mat-icon>close</mat-icon></button>
+            }
+          </div>
+          @if (!parentQuery()) {
+            <mat-option [value]="null">— Conto di primo livello —</mat-option>
+          }
+          @for (c of parentOptionsFiltrate(); track c.id) {
+            <mat-option [value]="c.id">{{ c.indent }}{{ c.nome }} <span class="pc-code-muted">{{ c.codice }}</span></mat-option>
+          }
+          @if (parentQuery() && !parentOptionsFiltrate().length) {
+            <p class="pc-search__empty">Nessun conto trovato</p>
+          }
+        </mat-select>
+        @if (!isEdit) {
+          <mat-hint>{{ tipoSig() ? 'Il codice si genera da solo, lo vedi qui accanto' : 'Scegli prima la natura' }}</mat-hint>
+        }
+      </mat-form-field>
+      </ng-container>
+    </ng-template>
+
     <mat-dialog-actions>
       @if (isEdit) {
         <button mat-button class="pc-form__delete" [disabled]="saving()" (click)="elimina()">
@@ -204,6 +233,14 @@ interface PreviewRow { codice: string; nome: string; depth: number; isNew: boole
     .pc-form__spacer { flex: 1 1 auto; }
     .pc-form__delete { color: var(--danger); }
     .pc-form__delete mat-icon { margin-right: 4px; }
+
+    /* Ricerca dentro il pannello del select: sticky, resta visibile mentre la lista scorre. */
+    .pc-search { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; background: var(--card); border-bottom: 1px solid var(--border); }
+    .pc-search mat-icon { color: var(--text-sub); font-size: 20px; width: 20px; height: 20px; }
+    .pc-search input { flex: 1; min-width: 0; border: none; background: transparent; outline: none; font: inherit; color: var(--text-main); }
+    .pc-search__clear { display: inline-flex; border: none; background: transparent; padding: 0; cursor: pointer; color: var(--text-sub); }
+    .pc-search__empty { margin: 0; padding: 14px 16px; font-size: .85rem; color: var(--text-sub); }
 
     /* ── modifica (form lineare) ────────────────────────────────────────────── */
     .pc-form { display: flex; flex-direction: column; gap: 4px; min-width: 360px; padding-top: 8px; }
@@ -387,6 +424,31 @@ export class PianoContiFormDialogComponent {
       // nbsp: gli spazi normali collassano dentro <mat-option>, il rientro ad albero sparirebbe.
       .map(c => ({ ...c, indent: '\u00A0\u00A0'.repeat(Math.max(0, c.livello - 1)) }));
   });
+
+  /** Testo digitato nella ricerca del select "conto padre" (l'albero arriva a centinaia di voci). */
+  readonly parentQuery = signal('');
+  private readonly parentSearchEl = viewChild<ElementRef<HTMLInputElement>>('parentSearch');
+
+  // Substring su nome E codice, accent/case-insensitive, a token: "vend tor" trova "Vendita torte".
+  readonly parentOptionsFiltrate = computed(() => {
+    const tokens = norm(this.parentQuery()).split(/\s+/).filter(Boolean);
+    const opts = this.parentOptions();
+    if (!tokens.length) return opts;
+    const sel = this.parentIdSig();
+    // Il selezionato resta in lista: fuori dal DOM, mat-select mostrerebbe un trigger vuoto.
+    return opts.filter(c => c.id === sel || tokens.every(t => norm(c.nome + ' ' + c.codice).includes(t)));
+  });
+
+  onParentPanel(aperto: boolean): void {
+    this.parentQuery.set('');
+    if (aperto) setTimeout(() => this.parentSearchEl()?.nativeElement.focus());
+  }
+
+  // I tasti "di testo" non devono arrivare al select (typeahead + spazio che seleziona);
+  // le frecce/Invio/Esc sì, servono a navigare la lista filtrata senza lasciare la tastiera.
+  onSearchKeydown(e: KeyboardEvent): void {
+    if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'].includes(e.key)) e.stopPropagation();
+  }
 
   // Anteprima "to-be": ramo/insieme selezionato + la voce nuova nel punto giusto, evidenziata.
   readonly previewRows = computed<PreviewRow[]>(() => {
