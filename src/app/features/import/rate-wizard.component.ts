@@ -536,9 +536,14 @@ export class RateWizardComponent implements OnInit {
 
   abs(n: number): number { return Math.abs(n); }
 
+  /**
+   * Le due strade sono alternative: aprire questa spegne «registrala e basta» E il conto che
+   * quel ramo aveva già precompilato. Vedi il gemello {@link #scegliRegistra}.
+   */
   apriManuale(): void {
     this.manuale.set(true);
     this.registraSenzaPiano.set(false);
+    this.cogeScelto.set(null);
   }
 
   /** Le rate arrivano col dettaglio del piano: la lista dei piani non le porta. */
@@ -589,8 +594,15 @@ export class RateWizardComponent implements OnInit {
     this.registraSenzaPiano.set(false);
   }
 
+  /**
+   * Gemello di {@link #apriManuale}: chiude il menu dei piani e dimentica piano e rata scelti.
+   * Fino al 09/09/2026 non lo faceva, e i due menu restavano aperti insieme (spec R5/R6).
+   */
   scegliRegistra(): void {
     this.candidatoScelto.set(null);
+    this.manuale.set(false);
+    this.pianoManuale.set(null);
+    this.rateFallite.set(false);
     this.registraSenzaPiano.set(true);
     const r = this.corrente();
     if (r && this.cogeScelto() == null) this.cogeScelto.set(r.cogeSuggeritoId);
