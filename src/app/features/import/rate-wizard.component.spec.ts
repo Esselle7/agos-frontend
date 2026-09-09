@@ -150,4 +150,40 @@ describe('RateWizardComponent — aggancio manuale piano+rata', () => {
     f.detectChanges();
     expect(testi(f)).toContain('non ha data di addebito');
   });
+
+  // Le due strade — «aggancia a un piano» e «registrala e basta» — sono alternative: aprire una
+  // deve chiudere l'altra. Prima del 09/09/2026 l'esclusività era a senso unico (apriManuale()
+  // spegneva registraSenzaPiano, scegliRegistra() NON spegneva manuale/pianoManuale), e i due
+  // menu restavano aperti insieme con uno stato invisibile impostato sotto.
+  it('R5 — «registrala e basta» chiude il menu della scelta manuale', () => {
+    const f = crea(RATA_MUTUO);
+    const c = f.componentInstance;
+
+    c.apriManuale();
+    c.scegliPiano(PIANO);
+    c.scegliRataManuale(DETTAGLIO, rata('r7', 7, 'PENDING'));
+    expect(c.manuale()).withContext('il menu manuale è aperto').toBeTrue();
+    expect(c.candidatoScelto()?.rataId).toBe('r7');
+
+    c.scegliRegistra();
+
+    expect(c.registraSenzaPiano()).toBeTrue();
+    expect(c.candidatoScelto()).withContext('la rata scelta va dimenticata').toBeNull();
+    expect(c.manuale()).withContext('il menu dei piani deve chiudersi').toBeFalse();
+    expect(c.pianoManuale()).withContext('il piano scelto va dimenticato').toBeNull();
+  });
+
+  it('R6 — riaprire la scelta manuale dimentica il conto già scelto', () => {
+    const f = crea({ ...RATA_MUTUO, cogeSuggeritoId: 16, cogeSuggeritoCodice: '20.01.001' });
+    const c = f.componentInstance;
+
+    c.scegliRegistra();
+    expect(c.cogeScelto()).withContext('il suggerimento si precompila').toBe(16);
+
+    c.apriManuale();
+
+    expect(c.manuale()).toBeTrue();
+    expect(c.registraSenzaPiano()).toBeFalse();
+    expect(c.cogeScelto()).withContext('il conto scelto va dimenticato').toBeNull();
+  });
 });
